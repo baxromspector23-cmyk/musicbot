@@ -8,6 +8,6 @@ services:
       - key: BOT_TOKEN
         sync: false
       - key: OWNER_ID
-        sync: false
+        value: "0"
       - key: WEBHOOK_SECRET
         generateValue: true
