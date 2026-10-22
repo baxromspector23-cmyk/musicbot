@@ -130,8 +130,12 @@ async def _call_gemini(
     model: str,
     lang: str,
 ) -> str:
-    """Call Google Gemini REST generateContent API."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    """Call Google Gemini REST generateContent API with automatic model fallback."""
+    models_to_try = [model]
+    for fb in ("gemini-2.5-flash", "gemini-3-flash-preview"):
+        if fb not in models_to_try:
+            models_to_try.append(fb)
+
     parts: list[dict[str, Any]] = []
 
     # Add images
@@ -151,17 +155,26 @@ async def _call_gemini(
         },
     }
 
+    last_error: Exception | None = None
     async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=45)) as session:
-        async with session.post(url, json=payload) as resp:
-            if resp.status != 200:
-                err_text = await resp.text()
-                raise ValueError(f"Gemini API returned status {resp.status}: {err_text[:200]}")
-            data = await resp.json()
-            candidates = data.get("candidates", [])
-            if not candidates:
-                raise ValueError("Gemini returned no candidates")
-            part = candidates[0].get("content", {}).get("parts", [{}])[0]
-            return part.get("text", "")
+        for m in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
+            try:
+                async with session.post(url, json=payload) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        candidates = data.get("candidates", [])
+                        if candidates:
+                            part = candidates[0].get("content", {}).get("parts", [{}])[0]
+                            return part.get("text", "")
+                    err_text = await resp.text()
+                    log.warning("Gemini model %s returned status %d: %s", m, resp.status, err_text[:150])
+                    last_error = ValueError(f"Gemini API {m} returned {resp.status}")
+            except Exception as exc:
+                log.warning("Gemini model %s error: %s", m, exc)
+                last_error = exc
+
+    raise last_error or ValueError("All Gemini models failed")
 
 
 async def _call_anthropic(
