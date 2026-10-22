@@ -2,7 +2,7 @@ services:
   - type: web
     name: music-editor-bot
     runtime: docker
-    plan: free
+    plan: free # "starter" ($7/oy) uzluksiz rejalashtiruvchi uchun tavsiya etiladi; free rejada /tick endpointiga tashqi pinger kerak
     healthCheckPath: /health
     envVars:
       - key: BOT_TOKEN
@@ -11,3 +11,51 @@ services:
         value: "0"
       - key: WEBHOOK_SECRET
         generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: TOKEN_ENC_KEY
+        generateValue: true
+      - key: IG_LOGIN_MODE
+        value: "instagram"
+      - key: IG_USER_ID
+        sync: false
+      - key: IG_ACCESS_TOKEN
+        sync: false
+      - key: IG_APP_ID
+        sync: false
+      - key: IG_APP_SECRET
+        sync: false
+      - key: IG_API_VERSION
+        value: "v21.0"
+      - key: LLM_PROVIDER
+        value: "gemini"
+      - key: LLM_MODEL
+        value: "gemini-1.5-flash"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CAPTION_LANG
+        value: "uz"
+      - key: BRAND_HASHTAG
+        sync: false
+      - key: DEFAULT_HASHTAGS
+        value: "reels,uzbekistan,tashkent,video,trend"
+      - key: HASHTAG_LIMIT
+        value: "5"
+      - key: TZ
+        value: "Asia/Tashkent"
+      - key: MAX_POSTS_PER_DAY
+        value: "2"
+      - key: MIN_GAP_HOURS
+        value: "4"
+      - key: QUIET_HOURS
+        value: "0-7"
+      - key: STORAGE_CHAT_ID
+        sync: false
+      - key: TICK_SECRET
+        generateValue: true
+      - key: SCHEDULER_INTERVAL_SEC
+        value: "30"
+      - key: MAX_REEL_MB
+        value: "19"

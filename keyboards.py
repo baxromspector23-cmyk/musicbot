@@ -57,6 +57,7 @@ def main_menu(sid: str, has_video: bool) -> InlineKeyboardMarkup:
     ]
     if has_video:
         rows[-1].append(_m(texts.BTN_EXTRACT, "ext", sid))
+        rows.append([_m(texts.BTN_MENU_IG, "ig_reel", sid)])
     rows.append([_m(texts.BTN_TAGS, "tags", sid), _m(texts.BTN_RINGTONE, "ring", sid)])
     rows.append([_m(texts.BTN_UNDO, "undo", sid), _m(texts.BTN_DONE, "done", sid)])
     return _kb(rows)
@@ -157,3 +158,55 @@ def ring_fades(sid: str) -> InlineKeyboardMarkup:
 def ring_targets(sid: str) -> InlineKeyboardMarkup:
     return _kb([[_o(texts.BTN_ANDROID, "ring_do", sid, "android"), _o(texts.BTN_IPHONE, "ring_do", sid, "iphone")],
                 _back(sid)])
+
+
+# ----------------------------------------------------------------------
+# Instagram Reels Keyboards
+# ----------------------------------------------------------------------
+
+def reel_aspect_kb() -> InlineKeyboardMarkup:
+    return _kb([
+        [InlineKeyboardButton(text=texts.BTN_ASPECT_CROP, callback_data="ig_asp_crop")],
+        [InlineKeyboardButton(text=texts.BTN_ASPECT_PAD, callback_data="ig_asp_pad")],
+        [InlineKeyboardButton(text=texts.BTN_ASPECT_ORIG, callback_data="ig_asp_orig")],
+        [InlineKeyboardButton(text=texts.BTN_CANCEL, callback_data="ig_cancel_flow")],
+    ])
+
+
+def reel_preview_kb(post_id: int) -> InlineKeyboardMarkup:
+    return _kb([
+        [
+            InlineKeyboardButton(text=texts.BTN_CONFIRM, callback_data=f"ig_confirm_{post_id}"),
+            InlineKeyboardButton(text=texts.BTN_REWRITE, callback_data=f"ig_rewrite_{post_id}"),
+        ],
+        [
+            InlineKeyboardButton(text=texts.BTN_EDIT_CAPTION, callback_data=f"ig_edit_cap_{post_id}"),
+            InlineKeyboardButton(text=texts.BTN_EDIT_HASHTAGS, callback_data=f"ig_edit_tags_{post_id}"),
+        ],
+        [InlineKeyboardButton(text=texts.BTN_CANCEL, callback_data=f"ig_cancel_{post_id}")],
+    ])
+
+
+def reel_time_kb(post_id: int) -> InlineKeyboardMarkup:
+    return _kb([
+        [InlineKeyboardButton(text=texts.BTN_TIME_AUTO, callback_data=f"ig_time_auto_{post_id}")],
+        [
+            InlineKeyboardButton(text=texts.BTN_TIME_NOW, callback_data=f"ig_time_now_{post_id}"),
+            InlineKeyboardButton(text=texts.BTN_TIME_MANUAL, callback_data=f"ig_time_manual_{post_id}"),
+        ],
+        [InlineKeyboardButton(text=texts.BTN_CANCEL, callback_data=f"ig_cancel_{post_id}")],
+    ])
+
+
+def post_manage_kb(post_id: int) -> InlineKeyboardMarkup:
+    return _kb([
+        [
+            InlineKeyboardButton(text=texts.BTN_RESCHEDULE, callback_data=f"ig_reschedule_{post_id}"),
+            InlineKeyboardButton(text=texts.BTN_POST_NOW, callback_data=f"ig_post_now_{post_id}"),
+        ],
+        [
+            InlineKeyboardButton(text=texts.BTN_EDIT_CAPTION, callback_data=f"ig_edit_cap_{post_id}"),
+            InlineKeyboardButton(text=texts.BTN_DELETE_POST, callback_data=f"ig_cancel_{post_id}"),
+        ],
+    ])
+

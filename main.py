@@ -13,9 +13,22 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 from aiohttp import web
 
 import config
-from handlers import common, convert, cut, effects, extract, files, menu, merge, ringtone, start, tags
+from handlers import (
+    common,
+    convert,
+    cut,
+    effects,
+    extract,
+    files,
+    instagram,
+    menu,
+    merge,
+    ringtone,
+    start,
+    tags,
+)
 from middlewares import OwnerOnlyMiddleware
-from services import ffmpeg
+from services import db, ffmpeg, scheduler
 from services import session as store
 
 log = logging.getLogger("main")
@@ -26,8 +39,10 @@ _cleanup_task: asyncio.Task[None] | None = None
 def setup_logging() -> None:
     """Log to stdout only."""
     logging.basicConfig(
-        stream=sys.stdout, level=getattr(logging, config.LOG_LEVEL, logging.INFO),
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s", force=True,
+        stream=sys.stdout,
+        level=getattr(logging, config.LOG_LEVEL, logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        force=True,
     )
     logging.getLogger("aiohttp.access").setLevel(logging.WARNING)
 
@@ -36,9 +51,21 @@ def build_dispatcher() -> Dispatcher:
     """Create the dispatcher with middleware and routers."""
     dp = Dispatcher(storage=MemoryStorage())
     dp.update.outer_middleware(OwnerOnlyMiddleware(config.OWNER_ID))
-    for r in (start.router, common.router, menu.router, tags.router, merge.router, cut.router,
-              effects.router, convert.router, extract.router, ringtone.router, files.router,
-              common.fallback_router):
+    for r in (
+        start.router,
+        common.router,
+        menu.router,
+        tags.router,
+        merge.router,
+        cut.router,
+        effects.router,
+        convert.router,
+        extract.router,
+        ringtone.router,
+        instagram.router,
+        files.router,
+        common.fallback_router,
+    ):
         dp.include_router(r)
     dp.errors.register(common.on_error)
     dp.startup.register(on_startup)
@@ -47,7 +74,7 @@ def build_dispatcher() -> Dispatcher:
 
 
 async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
-    """Verify binaries, wipe temp, detect capabilities, set commands/webhook."""
+    """Verify binaries, wipe temp, init db, start scheduler, set commands/webhook."""
     global _cleanup_task
     for tool in ("ffmpeg", "ffprobe"):
         if shutil.which(tool) is None:
@@ -57,12 +84,22 @@ async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
     log.info(await ffmpeg.ffprobe_version())
     store.wipe_root()
     await ffmpeg.get_caps()
+
+    # Initialize persistent SQLite/Postgres database
+    await db.init_db()
+
     await bot.set_my_commands([
         BotCommand(command="start", description="Boshlash"),
         BotCommand(command="help", description="Yordam"),
         BotCommand(command="new", description="Yangi fayl"),
+        BotCommand(command="reel", description="Instagram Reel rejalashtirish"),
+        BotCommand(command="queue", description="Rejalashtirilgan postlar"),
+        BotCommand(command="history", description="Postlar tarixi"),
+        BotCommand(command="stats", description="24 soatlik statistika"),
+        BotCommand(command="igstatus", description="Instagram ulanish holati"),
         BotCommand(command="cancel", description="Bekor qilish"),
     ])
+
     if config.BASE_URL:
         await bot.set_webhook(
             config.BASE_URL + config.WEBHOOK_PATH,
@@ -74,24 +111,52 @@ async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
     else:
         await bot.delete_webhook(drop_pending_updates=False)
         log.info("no public URL configured: polling mode")
+
     _cleanup_task = asyncio.create_task(store.cleanup_loop())
+    scheduler.start_scheduler(bot)
 
 
 async def on_shutdown() -> None:
     """Stop background tasks (the webhook is intentionally kept)."""
+    scheduler.stop_scheduler()
     if _cleanup_task is not None:
         _cleanup_task.cancel()
 
 
 async def health(_: web.Request) -> web.Response:
     """Health check for Render."""
+    age = scheduler.get_heartbeat_age_sec()
+    if age > 120 and scheduler._LAST_TICK_TS > 0:
+        log.warning("Scheduler heartbeat stale: %.1fs ago", age)
     return web.Response(text="ok")
 
 
+async def tick(request: web.Request) -> web.Response:
+    """External tick endpoint (e.g. cron-job.org / wakeup for Render free sleeping)."""
+    secret = request.query.get("secret")
+    if not secret and request.can_read_body:
+        try:
+            data = await request.post()
+            secret = data.get("secret")
+        except Exception:
+            pass
+
+    if not config.TICK_SECRET or secret != config.TICK_SECRET:
+        return web.Response(status=401, text="unauthorized")
+
+    bot: Bot = request.app["bot"]
+    published_count = await scheduler.process_due_posts(bot)
+    return web.json_response({"ok": True, "published": published_count})
+
+
 def create_app(bot: Bot, dp: Dispatcher) -> web.Application:
-    """aiohttp app with /health and the Telegram webhook route."""
+    """aiohttp app with /health, /tick and the Telegram webhook route."""
     app = web.Application()
+    app["bot"] = bot
     app.router.add_get("/health", health)
+    app.router.add_get("/tick", tick)
+    app.router.add_post("/tick", tick)
+
     # handle_in_background=True (aiogram default, verified): the update is processed in a
     # background task and the HTTP response is returned immediately, so FFmpeg never blocks it.
     SimpleRequestHandler(

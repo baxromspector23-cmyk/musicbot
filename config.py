@@ -1,6 +1,7 @@
 """Application configuration loaded from environment variables."""
 from __future__ import annotations
 
+import base64
 import hashlib
 import os
 import re
@@ -85,3 +86,70 @@ ALLOWED_EXT = frozenset(
      "mp4", "mov", "mkv", "webm", "avi"}
 )
 IMAGE_EXT = frozenset({"jpg", "jpeg", "png", "webp", "bmp"})
+
+# ======================================================================
+# Instagram Reels Auto-Poster Configuration
+# ======================================================================
+
+DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./data.db").strip()
+# Normalize postgres URL scheme if provided as postgres:// or postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgresql://") and not DATABASE_URL.startswith("postgresql+"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+
+def _get_encryption_key() -> str:
+    key = os.getenv("TOKEN_ENC_KEY", "").strip()
+    if key:
+        return key
+    # Derive a stable 32-byte urlsafe-base64 key from BOT_TOKEN if not explicitly set
+    derived = hashlib.sha256((BOT_TOKEN + ":fernet-salt").encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(derived).decode("ascii")
+
+
+TOKEN_ENC_KEY: str = _get_encryption_key()
+
+IG_LOGIN_MODE: str = os.getenv("IG_LOGIN_MODE", "instagram").strip().lower()  # "instagram" or "facebook"
+IG_USER_ID: str = os.getenv("IG_USER_ID", "").strip()
+IG_ACCESS_TOKEN: str = os.getenv("IG_ACCESS_TOKEN", "").strip()
+IG_APP_ID: str = os.getenv("IG_APP_ID", "").strip()
+IG_APP_SECRET: str = os.getenv("IG_APP_SECRET", "").strip()
+IG_API_VERSION: str = os.getenv("IG_API_VERSION", "v21.0").strip()
+
+LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini").strip().lower()  # "gemini" or "anthropic"
+LLM_MODEL: str = os.getenv("LLM_MODEL", "").strip()
+if not LLM_MODEL:
+    LLM_MODEL = "gemini-1.5-flash" if LLM_PROVIDER == "gemini" else "claude-3-5-haiku-20241022"
+
+ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "").strip()
+GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
+CAPTION_LANG: str = os.getenv("CAPTION_LANG", "uz").strip()
+BRAND_HASHTAG: str = os.getenv("BRAND_HASHTAG", "").strip().lstrip("#")
+DEFAULT_HASHTAGS: list[str] = [
+    t.strip().lstrip("#")
+    for t in os.getenv("DEFAULT_HASHTAGS", "reels,uzbekistan,tashkent,video,trend").split(",")
+    if t.strip()
+]
+HASHTAG_LIMIT: int = _get_int("HASHTAG_LIMIT", 5)
+
+TZ: str = os.getenv("TZ", "Asia/Tashkent").strip()
+MAX_POSTS_PER_DAY: int = _get_int("MAX_POSTS_PER_DAY", 2)
+MIN_GAP_HOURS: int = _get_int("MIN_GAP_HOURS", 4)
+QUIET_HOURS: str = os.getenv("QUIET_HOURS", "0-7").strip()
+
+_storage_chat_raw = os.getenv("STORAGE_CHAT_ID", "").strip()
+STORAGE_CHAT_ID: int | None = None
+if _storage_chat_raw:
+    try:
+        STORAGE_CHAT_ID = int(_storage_chat_raw)
+    except ValueError:
+        pass
+
+_tick_raw = os.getenv("TICK_SECRET", "").strip()
+if not _tick_raw:
+    _tick_raw = hashlib.sha256((BOT_TOKEN + ":tick-secret").encode("utf-8")).hexdigest()[:32]
+TICK_SECRET: str = _tick_raw
+
+SCHEDULER_INTERVAL_SEC: int = _get_int("SCHEDULER_INTERVAL_SEC", 30)
+MAX_REEL_MB: int = _get_int("MAX_REEL_MB", 19)

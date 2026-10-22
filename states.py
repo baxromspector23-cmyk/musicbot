@@ -36,3 +36,14 @@ class TagStates(StatesGroup):
 class RingStates(StatesGroup):
     waiting_start = State()
     choosing = State()
+
+
+class IgStates(StatesGroup):
+    waiting_video = State()
+    waiting_aspect = State()
+    waiting_description = State()
+    editing_caption = State()
+    editing_hashtags = State()
+    waiting_time = State()
+    editing_time = State()
+
