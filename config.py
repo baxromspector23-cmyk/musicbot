@@ -120,7 +120,7 @@ IG_API_VERSION: str = os.getenv("IG_API_VERSION", "v21.0").strip()
 LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini").strip().lower()  # "gemini" or "anthropic"
 LLM_MODEL: str = os.getenv("LLM_MODEL", "").strip()
 if not LLM_MODEL:
-    LLM_MODEL = "gemini-1.5-flash" if LLM_PROVIDER == "gemini" else "claude-3-5-haiku-20241022"
+    LLM_MODEL = "gemini-2.5-flash" if LLM_PROVIDER == "gemini" else "claude-3-5-haiku-20241022"
 
 ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "").strip()
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "").strip()
