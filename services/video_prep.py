@@ -111,42 +111,47 @@ async def prepare_reel_video(
     max_v_rate = min(target_video_bitrate, 3_500_000)
     buf_size = max_v_rate * 2
 
-    # Build video filter
-    vf: str
+    # Build video filter & map arguments
     if aspect_mode == "crop":
-        ratio = specs.width / specs.height if specs.height > 0 else TARGET_ASPECT
-        if ratio > TARGET_ASPECT:
-            # Wider than 9:16: crop sides
-            vf = (
-                f"crop=ih*9/16:ih:(iw-ih*9/16)/2:0,"
-                f"scale=w='min(1080,iw)':h='min(1920,ih)':force_original_aspect_ratio=decrease,"
-                f"scale=trunc(iw/2)*2:trunc(ih/2)*2"
-            )
-        else:
-            # Taller than 9:16: crop top/bottom
-            vf = (
-                f"crop=iw:iw*16/9:0:(ih-iw*16/9)/2,"
-                f"scale=w='min(1080,iw)':h='min(1920,ih)':force_original_aspect_ratio=decrease,"
-                f"scale=trunc(iw/2)*2:trunc(ih/2)*2"
-            )
+        # Scale to fill 1080x1920 keeping aspect ratio, then crop excess from center to exact 1080x1920
+        vf = (
+            "scale=1080:1920:force_original_aspect_ratio=increase,"
+            "crop=1080:1920:(iw-1080)/2:(ih-1920)/2"
+        )
+        filter_args = ["-vf", vf]
+        video_map = ["0:v:0"]
     elif aspect_mode == "pad":
-        # Pad with blurred background filling 1080x1920
+        # Pad with blurred background filling 1080x1920, with labeled [v] output to prevent duplicate streams
         vf = (
             "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,"
             "crop=1080:1920,boxblur=20:5[bg];"
             "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease[fg];"
-            "[bg][fg]overlay=(W-w)/2:(H-h)/2"
+            "[bg][fg]overlay=(W-w)/2:(H-h)/2[v]"
         )
+        filter_args = ["-filter_complex", vf]
+        video_map = ["[v]"]
     else:  # "original"
         vf = (
             "scale=w='min(1080,iw)':h='min(1920,ih)':force_original_aspect_ratio=decrease,"
             "scale=trunc(iw/2)*2:trunc(ih/2)*2"
         )
+        filter_args = ["-vf", vf]
+        video_map = ["0:v:0"]
+
+    input_args = ["-i", str(src)]
+    if not info.has_audio:
+        input_args.extend(["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100"])
+
+    map_args = ["-map", *video_map]
+    if info.has_audio:
+        map_args.extend(["-map", "0:a:0"])
+    else:
+        map_args.extend(["-map", "1:a:0"])
 
     cmd_args = [
-        "-i", str(src),
-        "-map", "0:v:0",
-        *(["-map", "0:a:0"] if info.has_audio else []),
+        *input_args,
+        *filter_args,
+        *map_args,
         "-c:v", "libx264",
         "-profile:v", "high",
         "-pix_fmt", "yuv420p",
@@ -157,19 +162,12 @@ async def prepare_reel_video(
         "-r", "30",
         "-movflags", "+faststart",
         "-threads", "2",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-ac", "2",
+        "-ar", "44100",
+        *(["-shortest"] if not info.has_audio else []),
     ]
-
-    if aspect_mode == "pad":
-        cmd_args.extend(["-filter_complex", vf])
-    else:
-        cmd_args.extend(["-vf", vf])
-
-    if info.has_audio:
-        cmd_args.extend(["-c:a", "aac", "-b:a", "128k", "-ac", "2", "-ar", "44100"])
-    else:
-        # Add silent audio track if original had no audio stream (Instagram requires audio track for Reels)
-        cmd_args.extend(["-f", "lavfi", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-                         "-c:a", "aac", "-b:a", "128k", "-shortest"])
 
     async with JOB_SEM:
         await ffmpeg.run_ffmpeg([*cmd_args, str(dst)], expected_duration=duration, on_progress=on_progress)

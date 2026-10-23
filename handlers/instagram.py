@@ -185,6 +185,7 @@ async def on_menu_ig_reel(cb: CallbackQuery, callback_data: MenuCb, state: FSMCo
 
     await cb.answer()
     video_path = s.current
+    await state.update_data(is_session_file=True)
     await _start_video_intake(bot, cb.from_user.id, video_path, s.info, state)
 
 
@@ -221,6 +222,7 @@ async def on_video_message(message: Message, state: FSMContext, bot: Bot) -> Non
         raise
 
     await status.delete()
+    await state.update_data(is_session_file=False)
     await _start_video_intake(bot, message.chat.id, temp_file, info, state)
 
 
@@ -330,7 +332,8 @@ async def _process_normalization(
         return
     finally:
         out_file.unlink(missing_ok=True)
-        raw_path.unlink(missing_ok=True)
+        if not data.get("is_session_file"):
+            raw_path.unlink(missing_ok=True)
         try:
             await status_msg.delete()
         except Exception:
@@ -661,19 +664,35 @@ async def on_retry_click(cb: CallbackQuery, bot: Bot) -> None:
     asyncio.create_task(scheduler.process_due_posts(bot))
 
 
-@router.callback_query(F.data.startswith("ig_cancel_"))
+@router.callback_query(F.data == "ig_cancel_flow")
+async def on_cancel_flow(cb: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    post_id = data.get("post_id")
+    if post_id:
+        try:
+            post = await db.get_post(post_id)
+            if post and post.status == "draft":
+                await db.delete_post(post_id)
+        except Exception:
+            pass
+    await state.clear()
+    await cb.answer()
+    await cb.message.answer(texts.CANCELLED)
+
+
+@router.callback_query(F.data.regexp(r"^ig_cancel_(\d+)$"))
 async def on_cancel_post_click(cb: CallbackQuery) -> None:
     await cb.answer()
     try:
         post_id = int(cb.data.split("_")[-1])
+        post = await db.get_post(post_id)
+        if not post:
+            await cb.message.answer(texts.CANCELLED)
+            return
+        if post.status == "published":
+            await cb.message.answer("Bu post allaqachon Instagram'ga joylangan. Uni tarixdan o'chirib bo'lmaydi.")
+            return
         await db.delete_post(post_id)
-        await cb.message.answer(f"Post #{post_id} bekor qilindi va o'chirildi.")
+        await cb.message.answer(f"Post #{post_id} bekor qilindi va navbatdan o'chirildi.")
     except Exception:
         await cb.message.answer(texts.CANCELLED)
-
-
-@router.callback_query(F.data == "ig_cancel_flow")
-async def on_cancel_flow(cb: CallbackQuery, state: FSMContext) -> None:
-    await state.clear()
-    await cb.answer()
-    await cb.message.answer(texts.CANCELLED)

@@ -492,6 +492,17 @@ async def test_claim_idempotency() -> None:
     assert set(all_claimed_ids) == expected_ids
     assert len(all_claimed_ids) == 3
 
+    # Test Issue 12 & 13: callback regex disambiguation and published post protection
+    import re
+    cancel_pattern = re.compile(r"^ig_cancel_(\d+)$")
+    assert cancel_pattern.match("ig_cancel_flow") is None, "ig_cancel_flow must NOT match cancel post regex"
+    assert cancel_pattern.match("ig_cancel_42") is not None
+    assert cancel_pattern.match("ig_cancel_42").group(1) == "42"
+
+    pub_post = await db.create_post(owner_id=1, status="published", caption="Published Reel History")
+    fetched = await db.get_post(pub_post.id)
+    assert fetched is not None and fetched.status == "published"
+
 
 async def test_catchup_logic() -> None:
     """Test 6: startup catch-up (<6h publish vs >=6h ask owner)."""
@@ -640,19 +651,44 @@ async def test_video_prep_capping() -> None:
     assert specs.height == 720
     assert specs.is_9_16 is False
 
-    # 1. Prepare with aspect_mode="crop"
+    # 1. Prepare with aspect_mode="crop" (must scale to exact 1080x1920, not 404x720)
     await video_prep.prepare_reel_video(src, dst_crop, info, specs, aspect_mode="crop")
     assert dst_crop.exists() and dst_crop.stat().st_size > 0
     crop_info, crop_specs = await video_prep.check_video_specs(dst_crop)
     assert crop_specs.is_9_16 is True
+    assert crop_specs.width == 1080 and crop_specs.height == 1920, f"Expected 1080x1920, got {crop_specs.width}x{crop_specs.height}"
     assert dst_crop.stat().st_size <= config.MAX_REEL_MB * 1024 * 1024
 
-    # 2. Prepare with aspect_mode="pad" (1080x1920)
+    # 2. Prepare with aspect_mode="pad" (1080x1920, single video stream)
     await video_prep.prepare_reel_video(src, dst_pad, info, specs, aspect_mode="pad")
     assert dst_pad.exists() and dst_pad.stat().st_size > 0
     pad_info, pad_specs = await video_prep.check_video_specs(dst_pad)
     assert pad_specs.width == 1080 and pad_specs.height == 1920
     assert dst_pad.stat().st_size <= config.MAX_REEL_MB * 1024 * 1024
+
+    # Verify pad has exactly 1 video stream (not duplicate 2 video streams)
+    out_pad_streams = await asyncio.create_subprocess_exec(
+        "ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(dst_pad),
+        stdout=asyncio.subprocess.PIPE
+    )
+    pad_stream_types = (await out_pad_streams.communicate())[0].decode().splitlines()
+    assert pad_stream_types.count("video") == 1, f"Expected 1 video stream, got {pad_stream_types.count('video')}"
+    assert pad_stream_types.count("audio") == 1, "Expected 1 audio stream"
+
+    # 3. Prepare mute video (no audio stream) -> must add silent audio track
+    mute_src = TMP / "mute_16_9.mp4"
+    mute_dst = TMP / "mute_reel.mp4"
+    await ffmpeg.run_ffmpeg([
+        "-f", "lavfi", "-i", "testsrc=duration=4:size=1280x720:rate=30",
+        "-c:v", "libx264", str(mute_src)
+    ])
+    mute_info, mute_specs = await video_prep.check_video_specs(mute_src)
+    assert mute_info.has_audio is False
+    await video_prep.prepare_reel_video(mute_src, mute_dst, mute_info, mute_specs, aspect_mode="crop")
+    assert mute_dst.exists() and mute_dst.stat().st_size > 0
+    mute_out_info, mute_out_specs = await video_prep.check_video_specs(mute_dst)
+    assert mute_out_info.has_audio is True, "Silent audio track must be added"
+    assert mute_out_specs.width == 1080 and mute_out_specs.height == 1920
 
 
 async def test_tick_authentication() -> None:
