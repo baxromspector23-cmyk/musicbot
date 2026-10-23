@@ -26,7 +26,7 @@ services:
       - key: IG_APP_SECRET
         sync: false
       - key: IG_API_VERSION
-        value: "v21.0"
+        value: "v25.0"
       - key: LLM_PROVIDER
         value: "gemini"
       - key: LLM_MODEL

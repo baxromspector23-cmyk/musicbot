@@ -99,16 +99,18 @@ class MockInstagramServer:
         self.media_counter = 500
 
         # Routes
-        self.app.router.add_post("/v21.0/{ig_user_id}/media", self._create_container)
+        for ver in ("v21.0", "v25.0"):
+            self.app.router.add_post(f"/{ver}/{{ig_user_id}}/media", self._create_container)
+            self.app.router.add_post(f"/{ver}/{{ig_user_id}}/media_publish", self._publish_media)
+            self.app.router.add_get(f"/{ver}/{{media_id}}/insights", self._media_insights)
+            self.app.router.add_get(f"/{ver}/{{ig_user_id}}/insights", self._user_insights)
+            self.app.router.add_get(f"/{ver}/{{ig_user_id}}/content_publishing_limit", self._quota_limit)
+            self.app.router.add_get(f"/{ver}/{{ig_user_id}}/media", self._user_media)
+            self.app.router.add_get(f"/{ver}/refresh_access_token", self._refresh_token)
+            self.app.router.add_get(f"/{ver}/oauth/access_token", self._refresh_token)
+            self.app.router.add_get(f"/{ver}/{{id}}", self._get_node)
+            self.app.router.add_post(f"/ig-api-upload/{ver}/{{container_id}}", self._upload_resumable)
         self.app.router.add_post("/ig-api-upload/{container_id}", self._upload_resumable)
-        self.app.router.add_post("/v21.0/{ig_user_id}/media_publish", self._publish_media)
-        self.app.router.add_get("/v21.0/{media_id}/insights", self._media_insights)
-        self.app.router.add_get("/v21.0/{ig_user_id}/insights", self._user_insights)
-        self.app.router.add_get("/v21.0/{ig_user_id}/content_publishing_limit", self._quota_limit)
-        self.app.router.add_get("/v21.0/{ig_user_id}/media", self._user_media)
-        self.app.router.add_get("/v21.0/refresh_access_token", self._refresh_token)
-        self.app.router.add_get("/v21.0/oauth/access_token", self._refresh_token)
-        self.app.router.add_get("/v21.0/{id}", self._get_node)
 
     async def _create_container(self, req: web.Request) -> web.Response:
         self.container_counter += 1
@@ -127,11 +129,18 @@ class MockInstagramServer:
         auth = req.headers.get("Authorization", "")
         if not auth.startswith("OAuth "):
             return web.json_response({"error": {"code": 190, "message": "Invalid OAuth token"}}, status=401)
-        # Read streaming body
+        te = req.headers.get("Transfer-Encoding", "")
+        if "chunked" in te.lower():
+            return web.json_response({"error": {"message": "Chunked encoding not supported"}}, status=400)
+        content_length = req.headers.get("Content-Length")
+        if not content_length:
+            return web.json_response({"error": {"message": "Content-Length header required"}}, status=411)
+        # Read body
         body = await req.read()
         if cid in self.containers:
             self.containers[cid]["uploaded"] = True
             self.containers[cid]["uploaded_bytes"] = len(body)
+            self.containers[cid]["content_length"] = content_length
         return web.json_response({"success": True})
 
     async def _poll_container(self, req: web.Request) -> web.Response:
@@ -176,16 +185,20 @@ class MockInstagramServer:
         # Account info query
         return web.json_response({"id": node_id, "username": "mock_creator_account"})
 
-    async def _media_insights(self, _: web.Request) -> web.Response:
-        return web.json_response({
-            "data": [
-                {"name": "plays", "values": [{"value": 2500}]},
-                {"name": "reach", "values": [{"value": 2100}]},
-                {"name": "likes", "values": [{"value": 180}]},
-                {"name": "comments", "values": [{"value": 22}]},
-                {"name": "saved", "values": [{"value": 65}]},
-            ]
-        })
+    async def _media_insights(self, req: web.Request) -> web.Response:
+        metrics = req.query.get("metric", "").split(",")
+        items = []
+        if "views" in metrics or not metrics:
+            items.append({"name": "views", "values": [{"value": 2500}]})
+        elif "plays" in metrics:
+            items.append({"name": "plays", "values": [{"value": 2500}]})
+        items.extend([
+            {"name": "reach", "values": [{"value": 2100}]},
+            {"name": "likes", "values": [{"value": 180}]},
+            {"name": "comments", "values": [{"value": 22}]},
+            {"name": "saved", "values": [{"value": 65}]},
+        ])
+        return web.json_response({"data": items})
 
     async def _user_insights(self, _: web.Request) -> web.Response:
         # Mock online followers heatmap with 24 hours
@@ -598,7 +611,7 @@ async def test_ambiguous_publish_recovery() -> None:
         client = InstagramClient(
             token="mock_valid_token",
             ig_user_id="17841400000000001",
-            base_url=f"http://{server.host}:{server.port}/v21.0",
+            base_url=f"http://{server.host}:{server.port}/v25.0",
         )
 
         # 1. Matching caption snippet
@@ -625,7 +638,7 @@ async def test_token_encryption_and_redaction() -> None:
 
     # Token redaction
     log_sample = (
-        "POST https://graph.instagram.com/v21.0/media?access_token=EAABtest123456789\n"
+        "POST https://graph.instagram.com/v25.0/media?access_token=EAABtest123456789\n"
         "Headers: Authorization: OAuth EAABsecretToken987654321\n"
         "Headers: x-goog-api-key: AIzaSySecretGeminiKey12345\n"
         "Headers: x-api-key: sk-ant-secretAnthropicKey98765\n"
@@ -757,8 +770,8 @@ async def test_mock_instagram_full_flow() -> None:
         client = InstagramClient(
             token="mock_valid_token",
             ig_user_id="17841400000000001",
-            base_url=f"http://{server.host}:{server.port}/v21.0",
-            upload_base_url=f"http://{server.host}:{server.port}/ig-api-upload",
+            base_url=f"http://{server.host}:{server.port}/v25.0",
+            upload_base_url=f"http://{server.host}:{server.port}/ig-api-upload/v25.0",
         )
 
         # 1. Account info
@@ -782,6 +795,7 @@ async def test_mock_instagram_full_flow() -> None:
         dummy_file.write_bytes(b"\x00" * (64 * 1024))
         await client.upload_video_resumable(cid, dummy_file)
         assert mock.containers[cid]["uploaded"] is True
+        assert mock.containers[cid].get("content_length") == str(64 * 1024)
 
         # 6. Status polling (2x IN_PROGRESS then FINISHED)
         status = await client.poll_container_status(cid, timeout=10)
@@ -797,6 +811,7 @@ async def test_mock_instagram_full_flow() -> None:
 
         # 9. Media insights
         insights = await client.get_media_insights(media_id)
+        assert insights.get("views") == 2500
         assert insights.get("plays") == 2500
         assert insights.get("likes") == 180
 
@@ -804,6 +819,12 @@ async def test_mock_instagram_full_flow() -> None:
         new_token, expires_in = await client.refresh_access_token("mock_valid_token")
         assert new_token == "mock_refreshed_access_token_xyz999"
         assert expires_in == 5184000
+
+        # 11. Default URLs and version verification
+        def_client = InstagramClient(token="mock_tok", ig_user_id="mock_user")
+        assert def_client.api_version == "v25.0"
+        assert def_client.upload_base_url == "https://rupload.facebook.com/ig-api-upload/v25.0"
+        assert "/v25.0" in def_client.base_url
     finally:
         await server.close()
 

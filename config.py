@@ -115,7 +115,7 @@ IG_USER_ID: str = os.getenv("IG_USER_ID", "").strip()
 IG_ACCESS_TOKEN: str = os.getenv("IG_ACCESS_TOKEN", "").strip()
 IG_APP_ID: str = os.getenv("IG_APP_ID", "").strip()
 IG_APP_SECRET: str = os.getenv("IG_APP_SECRET", "").strip()
-IG_API_VERSION: str = os.getenv("IG_API_VERSION", "v21.0").strip()
+IG_API_VERSION: str = os.getenv("IG_API_VERSION", "v25.0").strip()
 
 LLM_PROVIDER: str = os.getenv("LLM_PROVIDER", "gemini").strip().lower()  # "gemini" or "anthropic"
 LLM_MODEL: str = os.getenv("LLM_MODEL", "").strip()

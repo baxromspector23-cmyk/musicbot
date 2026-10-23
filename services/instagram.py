@@ -54,7 +54,7 @@ class InstagramClient:
         if upload_base_url:
             self.upload_base_url = upload_base_url.rstrip("/")
         else:
-            self.upload_base_url = "https://rupload.facebook.com/ig-api-upload"
+            self.upload_base_url = f"https://rupload.facebook.com/ig-api-upload/{self.api_version}"
 
     def _auth_params(self, params: dict[str, Any] | None = None) -> dict[str, Any]:
         p = dict(params or {})
@@ -143,7 +143,7 @@ class InstagramClient:
                 return str(container_id)
 
     async def upload_video_resumable(self, container_id: str, file_path: Path) -> None:
-        """Stream video binary data to rupload.facebook.com."""
+        """Stream video binary data to rupload.facebook.com with explicit Content-Length."""
         file_size = file_path.stat().st_size
         upload_url = f"{self.upload_base_url}/{container_id}"
 
@@ -151,28 +151,21 @@ class InstagramClient:
             "Authorization": f"OAuth {self.token}",
             "offset": "0",
             "file_size": str(file_size),
+            "Content-Length": str(file_size),
             "Content-Type": "application/octet-stream",
         }
 
-        async def file_sender() -> AsyncGenerator[bytes, None]:
-            chunk_size = 512 * 1024  # 512 KB
-            with open(file_path, "rb") as f:
-                while True:
-                    chunk = f.read(chunk_size)
-                    if not chunk:
-                        break
-                    yield chunk
-
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=600)) as s:
             try:
-                async with s.post(upload_url, headers=headers, data=file_sender()) as resp:
-                    data = {}
-                    try:
-                        data = await resp.json()
-                    except Exception:
-                        pass
-                    if resp.status not in (200, 201):
-                        self._check_error(data, resp.status)
+                with open(file_path, "rb") as fp:
+                    async with s.post(upload_url, headers=headers, data=fp) as resp:
+                        data = {}
+                        try:
+                            data = await resp.json()
+                        except Exception:
+                            pass
+                        if resp.status not in (200, 201):
+                            self._check_error(data, resp.status)
             except aiohttp.ClientError as exc:
                 raise InstagramTransientError(f"Network error during rupload: {exc}") from exc
 
@@ -249,20 +242,29 @@ class InstagramClient:
         return None
 
     async def get_media_insights(self, media_id: str) -> dict[str, int]:
-        """Fetch engagement metrics (plays, likes, comments, reach, saved)."""
+        """Fetch engagement metrics (views, likes, comments, reach, saved)."""
         url = f"{self.base_url}/{media_id}/insights"
-        params = self._auth_params({"metric": "plays,likes,comments,reach,saved"})
+        params = self._auth_params({"metric": "views,likes,comments,reach,saved"})
         results: dict[str, int] = {}
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as s:
             try:
                 async with s.get(url, params=params) as resp:
                     data = await resp.json()
+                    # Fallback to plays if views metric is not supported on older endpoints
+                    if "error" in data and "views" in params.get("metric", ""):
+                        params_fb = self._auth_params({"metric": "plays,likes,comments,reach,saved"})
+                        async with s.get(url, params=params_fb) as resp_fb:
+                            data = await resp_fb.json()
                     for entry in data.get("data", []):
                         name = entry.get("name")
                         values = entry.get("values", [{}])
                         val = values[0].get("value", 0) if values else 0
                         if name:
                             results[name] = int(val)
+                    if "views" in results and "plays" not in results:
+                        results["plays"] = results["views"]
+                    elif "plays" in results and "views" not in results:
+                        results["views"] = results["plays"]
             except Exception as exc:
                 log.warning("could not fetch media insights: %s", exc)
         return results

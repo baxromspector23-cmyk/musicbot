@@ -102,7 +102,7 @@ async def cmd_stats(message: Message) -> None:
             continue
         try:
             m = await client.get_media_insights(p.ig_media_id)
-            plays = m.get("plays", 0)
+            views = m.get("views", m.get("plays", 0))
             reach = m.get("reach", 0)
             likes = m.get("likes", 0)
             comments = m.get("comments", 0)
@@ -110,7 +110,7 @@ async def cmd_stats(message: Message) -> None:
             link = escape_html(p.permalink or "")
             msg_lines.append(
                 f"🎬 <a href='{link}'>{cap}</a>\n"
-                f"👁 {plays:,} plays | 👥 {reach:,} reach | ❤️ {likes:,} | 💬 {comments:,}\n"
+                f"👁 {views:,} views | 👥 {reach:,} reach | ❤️ {likes:,} | 💬 {comments:,}\n"
             )
         except Exception:
             continue

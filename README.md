@@ -68,7 +68,7 @@ Ilovangizda quyidagi ruxsatlar (permissions) faollashtirilgan bo'lishi kerak:
 
 **Graph API Explorer** vositasi orqali User Token yarating va uni 60 kunlik Long-Lived tokenga almashtiring:
 ```
-GET https://graph.facebook.com/v21.0/oauth/access_token?grant_type=fb_exchange_token&client_id={app-id}&client_secret={app-secret}&fb_exchange_token={short-lived-token}
+GET https://graph.facebook.com/v25.0/oauth/access_token?grant_type=fb_exchange_token&client_id={app-id}&client_secret={app-secret}&fb_exchange_token={short-lived-token}
 ```
 Olingan tokenni `IG_ACCESS_TOKEN` o'zgaruvchisiga kiriting. Bot token muddati tugashiga 10 kun qolganda uni avtomatik ravishda yangilab boradi!
 

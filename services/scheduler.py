@@ -303,7 +303,7 @@ async def _check_stats_reports(bot: Bot, now_utc: datetime) -> None:
     for p in posts_for_stats:
         try:
             metrics = await client.get_media_insights(p.ig_media_id)  # type: ignore[arg-type]
-            plays = metrics.get("plays", 0)
+            views = metrics.get("views", metrics.get("plays", 0))
             reach = metrics.get("reach", 0)
             likes = metrics.get("likes", 0)
             comments = metrics.get("comments", 0)
@@ -312,7 +312,7 @@ async def _check_stats_reports(bot: Bot, now_utc: datetime) -> None:
             msg = (
                 f"📈 <b>Reel 24 soatlik statistikasi:</b>\n\n"
                 f"🔗 {escape_html(p.permalink or '')}\n"
-                f"👁 Ko'rishlar (plays): {plays:,}\n"
+                f"👁 Ko'rishlar (views): {views:,}\n"
                 f"👥 Qamrov (reach): {reach:,}\n"
                 f"❤️ Layklar: {likes:,}\n"
                 f"💬 Izohlar: {comments:,}\n"
