@@ -170,6 +170,14 @@ async def t_normalize() -> None:
     await ffmpeg.normalize(C.tone, dst, long_info, -14)
     assert dst.stat().st_size > 0
 
+    # Test normalization on silent audio (loudnorm -inf handling)
+    silent_src = TMP / "silent.wav"
+    silent_dst = TMP / "norm_silent.wav"
+    await ffmpeg.run_ffmpeg(["-f", "lavfi", "-i", "anullsrc=r=44100:cl=stereo", "-t", "2", str(silent_src)])
+    silent_info = await probe(silent_src)
+    await ffmpeg.normalize(silent_src, silent_dst, silent_info, -14)
+    assert silent_dst.exists() and silent_dst.stat().st_size > 0
+
 
 async def t_convert() -> None:
     caps = await ffmpeg.get_caps()
@@ -183,6 +191,20 @@ async def t_convert() -> None:
             info = await probe(dst)
             approx(info.duration, 10, 0.3, f"{fmt} {br}")
             assert info.has_audio
+
+    # Verify convert_bitrates CallbackData format (Issue 4)
+    import keyboards as kb
+    from keyboards import OpCb
+    markup = kb.convert_bitrates("sid123", "mp3")
+    for row in markup.inline_keyboard:
+        for btn in row:
+            if btn.callback_data and btn.callback_data.startswith("o:conv_br"):
+                unpacked = OpCb.unpack(btn.callback_data)
+                assert unpacked.action == "conv_br"
+                assert unpacked.sid == "sid123"
+                fmt, _, br = unpacked.arg.replace(":", "_").partition("_")
+                assert fmt == "mp3"
+                assert int(br) in (128, 192, 256, 320)
 
 
 async def t_merge() -> None:
@@ -253,6 +275,17 @@ async def t_tags() -> None:
         await asyncio.to_thread(tagsvc.write_tags, f, tags, None)
         assert await asyncio.to_thread(tagsvc.read_tags, f) == tags
 
+    # Verify cover removal when tags are empty (Issue 7)
+    empty_tags = tagsvc.Tags()
+    for fmt in ("mp3", "m4a", "flac"):
+        f_cov = TMP / f"cov_test.{fmt}"
+        await ffmpeg.convert(C.tone, f_cov, C.info, 192)
+        await asyncio.to_thread(tagsvc.write_tags, f_cov, empty_tags, data)
+        assert (await asyncio.to_thread(tagsvc.read_cover, f_cov)) is not None
+        # Remove cover with empty tags
+        await asyncio.to_thread(tagsvc.write_tags, f_cov, empty_tags, None)
+        assert (await asyncio.to_thread(tagsvc.read_cover, f_cov)) is None
+
 
 async def t_thumbnail() -> None:
     cover = TMP / "cover_sq2.jpg"
@@ -276,11 +309,13 @@ async def t_thumbnail() -> None:
 
 async def t_health() -> None:
     from aiogram import Bot
+    from aiogram.client.default import DefaultBotProperties
+    from aiogram.enums import ParseMode
     from aiohttp.test_utils import TestClient, TestServer
 
     import main
 
-    bot = Bot(config.BOT_TOKEN)
+    bot = Bot(config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = main.build_dispatcher()
     app = main.create_app(bot, dp)
     app.on_startup.clear()  # do not contact Telegram in the test

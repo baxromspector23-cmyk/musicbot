@@ -17,7 +17,7 @@ from services import session as store
 from services.session import MergeItem, Session
 from services.tags import Tags
 from states import MergeStates
-from utils import UserError, fmt_duration
+from utils import UserError, escape_html, fmt_duration
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ router = Router(name="merge")
 
 def _list_text(s: Session) -> str:
     items = "\n".join(
-        texts.MERGE_ITEM.format(n=i, name=m.name, duration=fmt_duration(m.info.duration))
+        texts.MERGE_ITEM.format(n=i, name=escape_html(m.name), duration=fmt_duration(m.info.duration))
         for i, m in enumerate(s.merge_files, 1)
     )
     return texts.MERGE_LIST.format(items=items)

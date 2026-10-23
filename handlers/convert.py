@@ -62,5 +62,6 @@ async def conv_br(cb: CallbackQuery, callback_data: OpCb, bot: Bot) -> None:
     if s is None:
         return
     await cb.answer()
-    fmt, _, br = callback_data.arg.partition(":")
+    raw = callback_data.arg.replace(":", "_")
+    fmt, _, br = raw.partition("_")
     await _run(bot, cb.from_user.id, s.sid, fmt, int(br))

@@ -658,9 +658,11 @@ async def test_video_prep_capping() -> None:
 async def test_tick_authentication() -> None:
     """Test 11: /tick endpoint authentication and execution."""
     from aiogram import Bot, Dispatcher
+    from aiogram.client.default import DefaultBotProperties
+    from aiogram.enums import ParseMode
     from aiogram.fsm.storage.memory import MemoryStorage
 
-    bot = Bot(config.BOT_TOKEN)
+    bot = Bot(config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
     app = create_app(bot, dp)
 

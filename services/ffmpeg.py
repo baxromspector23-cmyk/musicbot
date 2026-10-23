@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import re
 import time
 from dataclasses import dataclass, field
@@ -323,7 +324,15 @@ def _parse_loudnorm(stderr: str) -> dict[str, float] | None:
     try:
         raw = json.loads(blocks[-1])
         keys = ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")
-        return {k: float(raw[k]) for k in keys}
+        parsed = {}
+        for k in keys:
+            val = float(raw[k])
+            if math.isinf(val) or math.isnan(val):
+                return None
+            parsed[k] = val
+        if parsed["input_i"] <= -70.0:  # Silence threshold according to EBU R128
+            return None
+        return parsed
     except (ValueError, KeyError):
         return None
 
@@ -345,7 +354,7 @@ async def normalize(src: Path, dst: Path, info: MediaInfo, target_lufs: float,
                   f"measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:"
                   f"offset={m['target_offset']}:linear=true")
         else:
-            log.warning("loudnorm measurement unavailable, using single pass")
+            log.warning("loudnorm measurement unavailable or audio is silent, using single pass")
     caps = await get_caps()
     args = [*_src(src), "-af", af, "-ar", str(info.sample_rate),
             *encoder_args(dst.suffix, info, caps), *_fmt_args(dst)]

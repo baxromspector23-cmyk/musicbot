@@ -22,7 +22,7 @@ from services.ffmpeg import FFmpegCancelled, FFmpegError, FFmpegTimeout, Invalid
 from services.sender import send_result
 from services.session import JOB_SEM, Session
 from services.tags import Tags, tags_supported, write_tags
-from utils import fmt_duration, progress_bar
+from utils import escape_html, fmt_duration, progress_bar
 
 log = logging.getLogger(__name__)
 
@@ -61,19 +61,23 @@ def format_tags(t: Tags) -> str:
     """One-line tags description."""
     if t.is_empty:
         return texts.CARD_NO_TAGS
-    return texts.TAG_LINE.format(title=t.title or "—", artist=t.artist or "—") + (f" ({t.album})" if t.album else "")
+    title = escape_html(t.title or "—")
+    artist = escape_html(t.artist or "—")
+    album = f" ({escape_html(t.album)})" if t.album else ""
+    return texts.TAG_LINE.format(title=title, artist=artist) + album
 
 
 def info_card(s: Session) -> str:
     """Info card for the current file."""
     i = s.info
     br = f" {round(i.bit_rate / 1000)} kbps" if i.bit_rate else ""
+    name = escape_html(s.source_name)
     text = texts.CARD.format(
-        name=s.source_name, duration=fmt_duration(i.duration),
+        name=name, duration=fmt_duration(i.duration),
         fmt=f"{i.codec_name or i.ext}{br}", tags=format_tags(s.tags),
     )
     if s.steps:
-        text += texts.CARD_STEPS.format(steps=" → ".join(s.steps))
+        text += texts.CARD_STEPS.format(steps=" → ".join(escape_html(step) for step in s.steps))
     return text
 
 
@@ -126,7 +130,7 @@ async def execute(
             info = await probe(dst)
             tags = new_tags if new_tags is not None else s.tags
             cover = s.cover if new_cover is KEEP else new_cover
-            if tags_supported(dst.suffix) and (not tags.is_empty or cover):
+            if tags_supported(dst.suffix) and (new_cover is not KEEP or new_tags is not None or not tags.is_empty or cover):
                 try:
                     await asyncio.to_thread(write_tags, dst, tags, cover)  # type: ignore[arg-type]
                 except Exception:

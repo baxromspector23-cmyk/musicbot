@@ -20,7 +20,7 @@ from services import session as store
 from services.session import JOB_SEM, Session
 from services.tags import Tags, cover_supported, tags_supported
 from states import TagStates
-from utils import clean_text
+from utils import clean_text, escape_html
 
 router = Router(name="tags")
 
@@ -62,7 +62,9 @@ async def tag_choice(cb: CallbackQuery, callback_data: OpCb, state: FSMContext, 
     await cb.answer()
     if arg == "show":
         await bot.send_message(chat_id, texts.TAGS_SHOW.format(
-            title=s.tags.title or "—", artist=s.tags.artist or "—", album=s.tags.album or "—",
+            title=escape_html(s.tags.title or "—"),
+            artist=escape_html(s.tags.artist or "—"),
+            album=escape_html(s.tags.album or "—"),
             cover=texts.TAGS_YES if s.cover else texts.TAGS_NO), reply_markup=kb.tags_kb(s.sid))
     elif arg in FIELD_NAMES:
         await state.set_state(TagStates.waiting_text)

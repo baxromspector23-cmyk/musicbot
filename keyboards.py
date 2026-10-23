@@ -130,7 +130,7 @@ def convert_formats(sid: str) -> InlineKeyboardMarkup:
 
 
 def convert_bitrates(sid: str, fmt: str) -> InlineKeyboardMarkup:
-    btns = [_o(f"{b}k", "conv_br", sid, f"{fmt}:{b}") for b in (128, 192, 256, 320)]
+    btns = [_o(f"{b}k", "conv_br", sid, f"{fmt}_{b}") for b in (128, 192, 256, 320)]
     return _kb([btns, _back(sid)])
 
 
