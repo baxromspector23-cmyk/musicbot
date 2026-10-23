@@ -128,7 +128,7 @@ CAPTION_LANG: str = os.getenv("CAPTION_LANG", "uz").strip()
 BRAND_HASHTAG: str = os.getenv("BRAND_HASHTAG", "").strip().lstrip("#")
 DEFAULT_HASHTAGS: list[str] = [
     t.strip().lstrip("#")
-    for t in os.getenv("DEFAULT_HASHTAGS", "reels,uzbekistan,tashkent,video,trend").split(",")
+    for t in os.getenv("DEFAULT_HASHTAGS", "dasturlash,coding,python,programmer,ituzbekistan,reels").split(",")
     if t.strip()
 ]
 HASHTAG_LIMIT: int = _get_int("HASHTAG_LIMIT", 5)

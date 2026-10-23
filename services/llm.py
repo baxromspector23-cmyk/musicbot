@@ -29,7 +29,8 @@ Follow these strict rules:
 6. Body clean: DO NOT put any hashtags inside the body text.
 7. Emojis: Use at most 3 relevant emojis total.
 8. No spam: No false claims, no engagement-bait spam (e.g., 'comment 5 times to win'), no copyright lyrics.
-9. Format: You MUST return a single valid JSON object with EXACTLY two keys:
+9. Tech & Programming: If the video or description touches on programming, coding, IT, web development, Python, algorithms, software engineering, tech tutorials, or code editors, adapt the caption tone to be engaging for developers and tech enthusiasts, and prioritize top programming hashtags (e.g. #dasturlash, #coding, #programmer, #python, #ituzbekistan, #developer).
+10. Format: You MUST return a single valid JSON object with EXACTLY two keys:
    "caption": "The body text without hashtags",
    "hashtags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
 Do not wrap in markdown or any text outside the JSON object."""

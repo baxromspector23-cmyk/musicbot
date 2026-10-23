@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 from aiogram import Bot, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, FSInputFile, Message
+from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 import config
 import keyboards as kb
@@ -405,7 +405,7 @@ async def on_desc_auto(cb: CallbackQuery, state: FSMContext, bot: Bot) -> None:
 
     status = await cb.message.answer(texts.REEL_AI_WORKING)
     ai_res = await llm.generate_caption(
-        description="Qiziqarli video",
+        description="Dasturlash va IT haqida video",
         audio_tags=audio_tags,
         frames=frames,
     )
@@ -419,7 +419,7 @@ async def on_desc_auto(cb: CallbackQuery, state: FSMContext, bot: Bot) -> None:
     full_text = ai_res["full_text"]
 
     await db.update_post(post_id, caption=full_text, hashtags=hashtags)
-    await state.update_data(last_desc="Qiziqarli video")
+    await state.update_data(last_desc="Dasturlash va IT haqida video")
 
     preview_text = texts.REEL_PREVIEW_CARD.format(
         caption=escape_html(caption),
@@ -442,7 +442,7 @@ async def on_description_entered(message: Message, state: FSMContext, bot: Bot) 
 
     desc_text = message.text or ""
     if desc_text.strip().lower() in ("avto", "auto", "o'tkazish", "otkazish", "-", "."):
-        desc_text = "Qiziqarli video"
+        desc_text = "Dasturlash va IT haqida video"
     import base64
     frames = [base64.b64decode(b) for b in data.get("frames_b64", [])]
     audio_tags = {"title": data.get("title", ""), "artist": data.get("artist", "")}
