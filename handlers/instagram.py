@@ -325,21 +325,34 @@ async def _process_normalization(
             document=FSInputFile(out_file, filename="reel_ready.mp4"),
             caption="📦 Instagram Reels Storage Video",
         )
-        tg_file_id = sent_doc.document.file_id  # type: ignore[union-attr]
-        tg_unique_id = sent_doc.document.file_unique_id  # type: ignore[union-attr]
+        media_obj = (
+            getattr(sent_doc, "document", None)
+            or getattr(sent_doc, "video", None)
+            or getattr(sent_doc, "animation", None)
+        )
+        if not media_obj:
+            raise ValueError(f"Telegram response contained no video or document: {sent_doc}")
+
+        tg_file_id = media_obj.file_id
+        tg_unique_id = media_obj.file_unique_id
+        file_size = getattr(media_obj, "file_size", None) or out_file.stat().st_size
         storage_msg_id = sent_doc.message_id
     except Exception as exc:
-        log.warning("could not store video to chat %s: %s", storage_chat, exc)
-        await status_msg.edit_text("Videoni saqlashda xatolik yuz berdi. Qayta urinib ko'ring.")
+        log.exception("could not store video to chat %s: %s", storage_chat, exc)
+        try:
+            await status_msg.edit_text("Videoni saqlashda xatolik yuz berdi. Qayta urinib ko'ring.")
+        except Exception:
+            pass
         return
     finally:
         out_file.unlink(missing_ok=True)
         if not data.get("is_session_file"):
             raw_path.unlink(missing_ok=True)
-        try:
-            await status_msg.delete()
-        except Exception:
-            pass
+
+    try:
+        await status_msg.delete()
+    except Exception:
+        pass
 
     # Create Post record in DB as draft
     post = await db.create_post(
@@ -348,7 +361,7 @@ async def _process_normalization(
         storage_message_id=storage_msg_id,
         tg_file_id=tg_file_id,
         file_unique_id=tg_unique_id,
-        file_size=sent_doc.document.file_size,  # type: ignore[union-attr]
+        file_size=file_size,
         duration=duration,
         width=1080 if aspect_mode != "original" else data.get("width"),
         height=1920 if aspect_mode != "original" else data.get("height"),
@@ -360,12 +373,62 @@ async def _process_normalization(
     frames_b64 = [base64.b64encode(f).decode("ascii") for f in frames]
     await state.update_data(post_id=post.id, frames_b64=frames_b64)
     await state.set_state(IgStates.waiting_description)
-    await bot.send_message(chat_id, texts.REEL_ASK_DESC)
+    auto_kb = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text="🚀 Avto (AI o'zi yozsin)", callback_data="ig_desc_auto"),
+        InlineKeyboardButton(text="❌ Bekor qilish", callback_data="ig_cancel_flow"),
+    ]])
+    await bot.send_message(chat_id, texts.REEL_ASK_DESC, reply_markup=auto_kb)
 
 
 # ----------------------------------------------------------------------
 # Description Intake & AI Caption Generation
 # ----------------------------------------------------------------------
+
+@router.callback_query(IgStates.waiting_description, F.data == "ig_desc_auto")
+async def on_desc_auto(cb: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    """Handle skipping description input, letting AI generate solely from video frames."""
+    await cb.answer()
+    try:
+        await cb.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    data = await state.get_data()
+    post_id = data.get("post_id")
+    if not post_id:
+        await state.clear()
+        await cb.message.answer(texts.SESSION_EXPIRED)
+        return
+
+    import base64
+    frames = [base64.b64decode(b) for b in data.get("frames_b64", [])]
+    audio_tags = {"title": data.get("title", ""), "artist": data.get("artist", "")}
+
+    status = await cb.message.answer(texts.REEL_AI_WORKING)
+    ai_res = await llm.generate_caption(
+        description="Qiziqarli video",
+        audio_tags=audio_tags,
+        frames=frames,
+    )
+    try:
+        await status.delete()
+    except Exception:
+        pass
+
+    caption = ai_res["caption"]
+    hashtags = ai_res["hashtags"]
+    full_text = ai_res["full_text"]
+
+    await db.update_post(post_id, caption=full_text, hashtags=hashtags)
+    await state.update_data(last_desc="Qiziqarli video")
+
+    preview_text = texts.REEL_PREVIEW_CARD.format(
+        caption=escape_html(caption),
+        hashtags=escape_html(" ".join("#" + t for t in hashtags)),
+    )
+    if ai_res.get("is_fallback"):
+        preview_text += f"\n\n⚠️ <i>{texts.REEL_AI_FALLBACK}</i>"
+
+    await cb.message.answer(preview_text, reply_markup=kb.reel_preview_kb(post_id))
 
 @router.message(IgStates.waiting_description, F.text)
 async def on_description_entered(message: Message, state: FSMContext, bot: Bot) -> None:
@@ -378,6 +441,8 @@ async def on_description_entered(message: Message, state: FSMContext, bot: Bot) 
         return
 
     desc_text = message.text or ""
+    if desc_text.strip().lower() in ("avto", "auto", "o'tkazish", "otkazish", "-", "."):
+        desc_text = "Qiziqarli video"
     import base64
     frames = [base64.b64decode(b) for b in data.get("frames_b64", [])]
     audio_tags = {"title": data.get("title", ""), "artist": data.get("artist", "")}
