@@ -560,6 +560,18 @@ async def test_catchup_logic() -> None:
     assert len(sent_messages) == 1
     assert "o'tib ketgan" in sent_messages[0][1]
 
+    # Verify status in database: ancient is 'overdue', recent is 'scheduled'
+    p_recent = await db.get_post(recent_overdue.id)
+    p_ancient = await db.get_post(ancient_overdue.id)
+    assert p_recent is not None and p_recent.status == "scheduled"
+    assert p_ancient is not None and p_ancient.status == "overdue"
+
+    # Verify claim_due_posts only claims recent (< 6h), and NOT ancient (>= 6h)
+    claimed = await db.claim_due_posts(now_utc)
+    claimed_ids = [p.id for p in claimed]
+    assert recent_overdue.id in claimed_ids
+    assert ancient_overdue.id not in claimed_ids
+
 
 async def test_retry_backoff_transitions() -> None:
     """Test 7: retry backoff transitions and failure after max attempts."""
@@ -829,6 +841,102 @@ async def test_mock_instagram_full_flow() -> None:
         await server.close()
 
 
+async def test_crashed_publishing_recovery() -> None:
+    """Test 13: Recovery from crash/timeout for posts stuck in 'publishing' status."""
+    await db.init_db()
+    now_utc = datetime.now(timezone.utc)
+
+    # Case A: stuck post (<6h overdue, attempt 0) -> should reset to 'scheduled' with attempt 1
+    stuck_fresh = await db.create_post(
+        owner_id=1,
+        scheduled_at=now_utc - timedelta(minutes=30),
+        status="publishing",
+        caption="Crash recovery test 1",
+    )
+    await db.update_post(stuck_fresh.id, attempts=0, locked_until=now_utc - timedelta(minutes=5))
+
+    # Case B: stuck post (>=6h overdue) -> should transition to 'overdue' and ask owner
+    stuck_old = await db.create_post(
+        owner_id=1,
+        scheduled_at=now_utc - timedelta(hours=8),
+        status="publishing",
+        caption="Crash recovery test 2",
+    )
+    await db.update_post(stuck_old.id, attempts=0, locked_until=now_utc - timedelta(minutes=5))
+
+    # Case C: stuck post with 3 attempts -> should transition to 'failed'
+    stuck_failed = await db.create_post(
+        owner_id=1,
+        scheduled_at=now_utc - timedelta(minutes=20),
+        status="publishing",
+        caption="Crash recovery test 3",
+    )
+    await db.update_post(stuck_failed.id, attempts=3, locked_until=now_utc - timedelta(minutes=5))
+
+    sent_messages: list[tuple[int, str]] = []
+
+    class MockBot:
+        async def send_message(self, chat_id: int, text: str, **kwargs) -> None:  # type: ignore[no-untyped-def]
+            sent_messages.append((chat_id, text))
+
+    mock = MockInstagramServer()
+    server = TestServer(mock.app)
+    await server.start_server()
+
+    try:
+        mock_client = InstagramClient(token="mock", base_url=f"http://{server.host}:{server.port}/v25.0")
+        await scheduler._recover_stuck_publishing_posts(MockBot(), now_utc, client=mock_client)  # type: ignore[arg-type]
+
+        p_a = await db.get_post(stuck_fresh.id)
+        p_b = await db.get_post(stuck_old.id)
+        p_c = await db.get_post(stuck_failed.id)
+
+        assert p_a is not None and p_a.status == "scheduled" and p_a.attempts == 1
+        assert p_b is not None and p_b.status == "overdue"
+        assert p_c is not None and p_c.status == "failed"
+    finally:
+        await server.close()
+
+
+async def test_daily_token_refresh() -> None:
+    """Test 14: Daily token check and auto-refresh."""
+    await db.init_db()
+    # Save a mock token expiring in 5 days (< 10 days threshold)
+    await tokens.save_token("mock_near_expiry_token", expires_in_sec=5 * 86400)
+    tok_info = await tokens.get_token_status()
+    assert tok_info["days_left"] == 5
+
+    # Mock server for token refresh
+    mock = MockInstagramServer()
+    server = TestServer(mock.app)
+    await server.start_server()
+
+    try:
+        # Patch client to use mock server
+        client = InstagramClient(
+            token="mock_valid_token",
+            base_url=f"http://{server.host}:{server.port}/v25.0",
+        )
+        refreshed = await tokens.maybe_refresh_token(client)
+        assert refreshed is True
+
+        # Now token should have ~60 days left
+        new_info = await tokens.get_token_status()
+        assert new_info["days_left"] >= 58
+
+        # Test daily check persists timestamp
+        ran = await scheduler.check_daily_token_refresh(force=True, client=client)
+        assert ran is False or ran is True
+        ts = await db.get_kv("last_daily_token_check_ts")
+        assert ts is not None and float(ts) > 0
+
+        # Immediate second call without force should skip (already checked within 24h)
+        ran2 = await scheduler.check_daily_token_refresh(force=False, client=client)
+        assert ran2 is False
+    finally:
+        await server.close()
+
+
 # ----------------------------------------------------------------------
 # Runner
 # ----------------------------------------------------------------------
@@ -850,6 +958,8 @@ async def main_async() -> int:
         ("10. Video prep 9:16 aspect & size capping", test_video_prep_capping),
         ("11. /tick authentication & health check", test_tick_authentication),
         ("12. Mock Instagram API end-to-end pipeline", test_mock_instagram_full_flow),
+        ("13. Crashed 'publishing' post recovery", test_crashed_publishing_recovery),
+        ("14. Daily token health check and auto-refresh", test_daily_token_refresh),
     ]
 
     for name, fn in tests:

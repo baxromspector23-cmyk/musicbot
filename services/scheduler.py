@@ -51,22 +51,27 @@ async def process_due_posts(bot: Bot) -> int:
 
     async with _SCHEDULER_LOCK:
         now_utc = datetime.now(timezone.utc)
-        claimed = await db.claim_due_posts(now_utc)
-        if not claimed:
-            # Check reminders and stats
-            await _check_reminders(bot, now_utc)
-            await _check_stats_reports(bot, now_utc)
-            return 0
+        # 1. Recover any stuck publishing posts (crash/timeout recovery)
+        await _recover_stuck_publishing_posts(bot, now_utc)
 
-        log.info("claimed %d due post(s) for publishing", len(claimed))
+        # 2. Check and prompt posts overdue by >= 6 hours
+        await _check_overdue_posts(bot, now_utc)
+
+        # 3. Daily token health check and auto-refresh
+        await check_daily_token_refresh(bot)
+
+        # 4. Atomically claim due posts (scheduled, <= now_utc, >= 6h ago, not locked)
+        claimed = await db.claim_due_posts(now_utc)
         published_count = 0
-        for post in claimed:
-            try:
-                ok = await _publish_single_post(bot, post.id)
-                if ok:
-                    published_count += 1
-            except Exception as exc:
-                log.exception("unhandled error publishing post %d: %s", post.id, redact_token(str(exc)))
+        if claimed:
+            log.info("claimed %d due post(s) for publishing", len(claimed))
+            for post in claimed:
+                try:
+                    ok = await _publish_single_post(bot, post.id)
+                    if ok:
+                        published_count += 1
+                except Exception as exc:
+                    log.exception("unhandled error publishing post %d: %s", post.id, redact_token(str(exc)))
 
         # Also process reminders and 24h stats
         await _check_reminders(bot, now_utc)
@@ -89,6 +94,28 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
 
     client = InstagramClient(token=token)
     await tokens.maybe_refresh_token(client)
+
+    # Pre-check: ambiguous crash recovery (avoid re-publishing if already on Instagram)
+    if post.caption:
+        try:
+            recovered = await client.check_recent_media_published(post.caption[:40])
+            if recovered:
+                media_id, permalink = recovered
+                now_pub = datetime.now(timezone.utc)
+                await db.update_post(
+                    post_id,
+                    status="published",
+                    published_at=now_pub,
+                    ig_media_id=media_id,
+                    permalink=permalink,
+                    locked_until=None,
+                    error=None,
+                )
+                log.info("post %d already published on Instagram (pre-check recovered): %s", post_id, permalink)
+                await _notify_owner(bot, post.owner_id, texts.IG_PUBLISHED.format(permalink=escape_html(permalink or "")))
+                return True
+        except Exception as exc:
+            log.warning("error in pre-publish recovery check for post %d: %s", post_id, exc)
 
     # 1. Content publishing limit check
     try:
@@ -323,26 +350,82 @@ async def _check_stats_reports(bot: Bot, now_utc: datetime) -> None:
             log.warning("could not send 24h stats for post %d: %s", p.id, exc)
 
 
-async def handle_startup_catchup(bot: Bot) -> None:
-    """Catch-up logic on startup: publish overdue (<6h) or ask owner (>6h)."""
-    now_utc = datetime.now(timezone.utc)
-    six_hours_ago = now_utc - timedelta(hours=6)
+async def _check_overdue_posts(bot: Bot, now_utc: datetime) -> int:
+    """Find scheduled posts overdue by >= 6 hours, mark 'overdue', and prompt owner."""
+    six_hours_ago = datetime.fromtimestamp(now_utc.timestamp() - 6 * 3600, tz=timezone.utc)
+    overdue_posts = await db.get_overdue_scheduled_posts(six_hours_ago)
+    if not overdue_posts:
+        return 0
 
-    async with db.session_scope() as session:
-        from sqlalchemy import select
-        stmt = (
-            select(db.Post)
-            .where(
-                (db.Post.status == "scheduled")
-                & (db.Post.scheduled_at < now_utc)
-            )
-        )
-        res = await session.execute(stmt)
-        overdue_posts = list(res.scalars().all())
-
+    count = 0
     for p in overdue_posts:
-        if p.scheduled_at and p.scheduled_at < six_hours_ago:
-            # Overdue by > 6 hours: ask owner instead of blind publishing
+        await db.update_post(p.id, status="overdue", locked_until=None)
+        preview = escape_html((p.caption or "")[:60])
+        text = texts.IG_OVERDUE_ASK.format(preview=preview)
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🚀 Hozir joylash", callback_data=f"ig_post_now_{p.id}"),
+                InlineKeyboardButton(text="⏰ Vaqtni o'zgartirish", callback_data=f"ig_reschedule_{p.id}"),
+            ],
+            [
+                InlineKeyboardButton(text="🗑 Bekor qilish", callback_data=f"ig_cancel_{p.id}"),
+            ]
+        ])
+        try:
+            await bot.send_message(p.owner_id, text, reply_markup=kb)
+        except Exception as exc:
+            log.warning("could not notify overdue owner for post %d: %s", p.id, exc)
+        count += 1
+
+    return count
+
+
+async def _recover_stuck_publishing_posts(
+    bot: Bot, now_utc: datetime | None = None, client: InstagramClient | None = None
+) -> int:
+    """Recover posts left in 'publishing' status due to process crashes or expired locks."""
+    stuck_posts = await db.get_stuck_publishing_posts(now_utc)
+    if not stuck_posts:
+        return 0
+
+    log.warning("found %d post(s) stuck in 'publishing' status", len(stuck_posts))
+    recovered_count = 0
+    if client is None:
+        token = await tokens.get_active_token()
+        client = InstagramClient(token=token) if token else None
+    ref_time = now_utc or datetime.now(timezone.utc)
+    six_hours_ago = datetime.fromtimestamp(ref_time.timestamp() - 6 * 3600, tz=timezone.utc)
+
+    for p in stuck_posts:
+        recovered = None
+        if client and p.caption:
+            try:
+                recovered = await client.check_recent_media_published(p.caption[:40])
+            except Exception as exc:
+                log.warning("error checking recent media for stuck post %d: %s", p.id, exc)
+
+        if recovered:
+            media_id, permalink = recovered
+            await db.update_post(
+                p.id,
+                status="published",
+                published_at=ref_time,
+                ig_media_id=media_id,
+                permalink=permalink,
+                locked_until=None,
+                error=None,
+            )
+            log.info("stuck post %d was already published: %s", p.id, permalink)
+            await _notify_owner(bot, p.owner_id, texts.IG_PUBLISHED.format(permalink=escape_html(permalink or "")))
+            recovered_count += 1
+        elif p.attempts >= 3:
+            err = "Publishing jarayoni to'xtab qolgan (crash/timeout)"
+            await db.update_post(p.id, status="failed", locked_until=None, error=err)
+            await _notify_failure_with_buttons(bot, p, err)
+            recovered_count += 1
+        elif p.scheduled_at and p.scheduled_at < six_hours_ago:
+            # Overdue by >= 6 hours: mark overdue and ask owner
+            await db.update_post(p.id, status="overdue", locked_until=None, error="Jarayon to'xtab qolgan (6+ soat o'tgan)")
             preview = escape_html((p.caption or "")[:60])
             text = texts.IG_OVERDUE_ASK.format(preview=preview)
             kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -357,13 +440,79 @@ async def handle_startup_catchup(bot: Bot) -> None:
             try:
                 await bot.send_message(p.owner_id, text, reply_markup=kb)
             except Exception as exc:
-                log.warning("could not notify overdue post %d: %s", p.id, exc)
+                log.warning("could not notify overdue owner for post %d: %s", p.id, exc)
+            recovered_count += 1
+        else:
+            # Revert to scheduled for clean retry
+            await db.update_post(p.id, status="scheduled", locked_until=None, attempts=p.attempts + 1)
+            log.info("reset stuck post %d to 'scheduled' status (attempt %d)", p.id, p.attempts + 1)
+            recovered_count += 1
+
+    return recovered_count
+
+
+async def check_daily_token_refresh(
+    bot: Bot | None = None, force: bool = False, client: InstagramClient | None = None
+) -> bool:
+    """Daily background check for Instagram token health and auto-refresh."""
+    now_ts = time.time()
+    last_check_raw = await db.get_kv("last_daily_token_check_ts", 0.0)
+    try:
+        last_check = float(last_check_raw or 0.0)
+    except (ValueError, TypeError):
+        last_check = 0.0
+
+    if not force and (now_ts - last_check) < 86400:
+        return False  # Checked within last 24 hours
+
+    await db.set_kv("last_daily_token_check_ts", now_ts)
+    if client is None:
+        token = await tokens.get_active_token()
+        if not token:
+            return False
+        client = InstagramClient(token=token)
+    refreshed = await tokens.maybe_refresh_token(client)
+    if refreshed:
+        log.info("daily check: Instagram token was successfully refreshed with Meta")
+        if bot and config.OWNER_ID > 0:
+            try:
+                await bot.send_message(
+                    config.OWNER_ID,
+                    "🔄 <b>Instagram Token avtomatik yangilandi!</b>\n\n"
+                    "Kunlik tekshiruv: Token muddati muvaffaqiyatli yana 60 kunga uzaytirildi."
+                )
+            except Exception as exc:
+                log.debug("could not notify owner of token refresh: %s", exc)
+        return True
+
+    # Alert if token is expiring within 3 days and could not be refreshed
+    status = await tokens.get_token_status()
+    if status.get("configured") and status.get("days_left", 999) <= 3:
+        if bot and config.OWNER_ID > 0:
+            try:
+                await bot.send_message(
+                    config.OWNER_ID,
+                    f"⚠️ <b>Diqqat: Instagram Token muddati tugamoqda!</b>\n\n"
+                    f"Qolgan vaqt: {status.get('days_left')} kun.\n"
+                    f"Iltimos, /igstatus orqali tekshiring yoki yangi token kiriting."
+                )
+            except Exception:
+                pass
+    return False
+
+
+async def handle_startup_catchup(bot: Bot) -> None:
+    """Startup catch-up: recover stuck publishing posts and prompt >=6h overdue posts."""
+    now_utc = datetime.now(timezone.utc)
+    await _recover_stuck_publishing_posts(bot, now_utc=None)
+    await _check_overdue_posts(bot, now_utc)
 
 
 async def _scheduler_loop(bot: Bot) -> None:
     """Main scheduler background loop running every SCHEDULER_INTERVAL_SEC."""
     log.info("Instagram scheduler background task started (interval: %ds)", config.SCHEDULER_INTERVAL_SEC)
     await handle_startup_catchup(bot)
+    await check_daily_token_refresh(bot, force=False)
 
     while True:
         try:

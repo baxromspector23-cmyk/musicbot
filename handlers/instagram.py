@@ -51,14 +51,16 @@ async def cmd_queue(message: Message) -> None:
     for p in posts:
         loc_time = p.scheduled_at.astimezone(tz).strftime("%d.%m %H:%M") if p.scheduled_at else "—"
         cap = escape_html((p.caption or "")[:40].replace("\n", " "))
-        lines.append(f"• <b>#{p.id}</b> | 📅 {loc_time} | 📝 {cap}...")
+        tag = "⚠️ Vaqti o'tgan" if p.status == "overdue" else f"📅 {loc_time}"
+        lines.append(f"• <b>#{p.id}</b> | {tag} | 📝 {cap}...")
 
     await message.answer("\n".join(lines))
     # Send management cards for up to 3 upcoming posts
     for p in posts[:3]:
         loc_time = p.scheduled_at.astimezone(tz).strftime("%d.%m %H:%M") if p.scheduled_at else "—"
+        status_note = " (⚠️ Vaqti o'tgan)" if p.status == "overdue" else ""
         cap = escape_html((p.caption or "")[:50])
-        text = f"Post <b>#{p.id}</b> ({loc_time}):\n<i>{cap}</i>"
+        text = f"Post <b>#{p.id}</b> ({loc_time}){status_note}:\n<i>{cap}</i>"
         await message.answer(text, reply_markup=kb.post_manage_kb(p.id))
 
 

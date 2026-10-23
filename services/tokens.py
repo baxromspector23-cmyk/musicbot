@@ -116,7 +116,7 @@ async def get_token_status() -> dict[str, Any]:
 
     now = time.time()
     expires_at = item.get("expires_at", now)
-    diff_days = max(0, int((expires_at - now) / 86400))
+    diff_days = max(0, int(round((expires_at - now) / 86400)))
     status_text = "faol" if expires_at > now else "muddati tugagan"
     return {
         "configured": True,

@@ -244,7 +244,7 @@ async def list_scheduled_posts(limit: int = 50) -> list[Post]:
     async with session_scope() as session:
         stmt = (
             select(Post)
-            .where(Post.status == "scheduled")
+            .where(Post.status.in_(["scheduled", "overdue"]))
             .order_by(Post.scheduled_at.asc().nulls_last(), Post.id.asc())
             .limit(limit)
         )
@@ -264,18 +264,54 @@ async def list_published_posts(limit: int = 10) -> list[Post]:
         return list(res.scalars().all())
 
 
+async def get_stuck_publishing_posts(now_utc: datetime | None = None) -> list[Post]:
+    """Return posts in 'publishing' status whose lock has expired or all publishing posts on startup."""
+    async with session_scope() as session:
+        if now_utc is None:
+            stmt = select(Post).where(Post.status == "publishing").order_by(Post.id.asc())
+        else:
+            stmt = (
+                select(Post)
+                .where(
+                    (Post.status == "publishing")
+                    & ((Post.locked_until == None) | (Post.locked_until <= now_utc))  # noqa: E711
+                )
+                .order_by(Post.id.asc())
+            )
+        res = await session.execute(stmt)
+        return list(res.scalars().all())
+
+
+async def get_overdue_scheduled_posts(cutoff_time: datetime) -> list[Post]:
+    """Return scheduled posts whose scheduled_at is older than cutoff_time (e.g. 6 hours ago)."""
+    async with session_scope() as session:
+        stmt = (
+            select(Post)
+            .where(
+                (Post.status == "scheduled")
+                & (Post.scheduled_at != None)  # noqa: E711
+                & (Post.scheduled_at < cutoff_time)
+            )
+            .order_by(Post.scheduled_at.asc(), Post.id.asc())
+        )
+        res = await session.execute(stmt)
+        return list(res.scalars().all())
+
+
 async def claim_due_posts(now_utc: datetime, lock_duration_sec: int = 900) -> list[Post]:
     """Atomically claim posts that are due for publishing (idempotency guard)."""
     claimed_posts: list[Post] = []
     lock_until = datetime.fromtimestamp(now_utc.timestamp() + lock_duration_sec, tz=timezone.utc)
+    six_hours_ago = datetime.fromtimestamp(now_utc.timestamp() - 6 * 3600, tz=timezone.utc)
 
     async with session_scope() as session:
-        # Select candidates that are scheduled and due, or whose lock has expired
+        # Select candidates that are scheduled, due, within the 6-hour window, and not locked
         stmt = (
             select(Post)
             .where(
                 (Post.status == "scheduled")
                 & (Post.scheduled_at <= now_utc)
+                & (Post.scheduled_at >= six_hours_ago)
                 & ((Post.locked_until == None) | (Post.locked_until <= now_utc))  # noqa: E711
             )
             .order_by(Post.scheduled_at.asc(), Post.id.asc())
