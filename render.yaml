@@ -2,29 +2,27 @@ services:
   - type: web
     name: music-editor-bot
     runtime: docker
-    plan: free # "starter" ($7/oy) uzluksiz rejalashtiruvchi uchun tavsiya etiladi; free rejada /tick endpointiga tashqi pinger kerak
+    plan: free
     healthCheckPath: /health
     envVars:
       - key: BOT_TOKEN
-        sync: false
+        value: "8854386763:AAHTiIiCJqOz_2hAsrZs33rRLrcWjXFP7fo"
       - key: OWNER_ID
         value: "0"
       - key: WEBHOOK_SECRET
         generateValue: true
-      - key: DATABASE_URL
-        sync: false
       - key: TOKEN_ENC_KEY
         generateValue: true
       - key: IG_LOGIN_MODE
         value: "instagram"
       - key: IG_USER_ID
-        sync: false
+        value: "17841480703382946"
       - key: IG_ACCESS_TOKEN
-        sync: false
+        value: "IGAAURKDxXyyxBZAFp0ZAUpvVzdEa2hKY2IxM1dZATVZAVREY4VjRRMXZAvMjIzZAU9yakhIdm9QQVVkVE1nS1ZAlZA0g0MEJ6a2E1QTd3dEVCU2llXzlmTWFNTXpfN3dnQnJHU3dIaXRxT2FLWGpfVGFab2NTaVJXVkdNem84bEtzTVNScwZDZD"
       - key: IG_APP_ID
-        sync: false
+        value: "1426239392303916"
       - key: IG_APP_SECRET
-        sync: false
+        value: "f1d1f77bfee24b6600899f6da7e36dbe"
       - key: IG_API_VERSION
         value: "v25.0"
       - key: LLM_PROVIDER
@@ -32,13 +30,9 @@ services:
       - key: LLM_MODEL
         value: "gemini-pro-latest"
       - key: GEMINI_API_KEY
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
+        value: "AQ.Ab8RN6KD-qs5ni_EaUEDi4yZJ47wmPYzTs2UY5Or11ay8E4_WA"
       - key: CAPTION_LANG
         value: "uz"
-      - key: BRAND_HASHTAG
-        sync: false
       - key: DEFAULT_HASHTAGS
         value: "dasturlash,coding,python,programmer,ituzbekistan"
       - key: HASHTAG_LIMIT
@@ -51,8 +45,6 @@ services:
         value: "4"
       - key: QUIET_HOURS
         value: "0-7"
-      - key: STORAGE_CHAT_ID
-        sync: false
       - key: TICK_SECRET
         generateValue: true
       - key: SCHEDULER_INTERVAL_SEC
