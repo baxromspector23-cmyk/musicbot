@@ -41,11 +41,20 @@ def redact_token(text: str) -> str:
     """Redact tokens, passwords, and secrets from logs and error strings."""
     if not text:
         return ""
-    # Redact access_token parameters
-    s = re.sub(r"(access_token|client_secret|TICK_SECRET|token|fb_exchange_token)=([A-Za-z0-9_\-\.\:\~]+)",
-               r"\1=[REDACTED]", text, flags=re.I)
-    # Redact Authorization: OAuth or Bearer headers
-    s = re.sub(r"(Authorization:\s*(?:OAuth|Bearer)\s+)[A-Za-z0-9_\-\.\:\~]+", r"\1[REDACTED]", s, flags=re.I)
+    # Redact query params & key-values (including key, api_key, token)
+    s = re.sub(
+        r"(access_token|client_secret|TICK_SECRET|token|fb_exchange_token|key|api_key|x-goog-api-key)=([A-Za-z0-9_\-\.\:\~]+)",
+        r"\1=[REDACTED]",
+        text,
+        flags=re.I,
+    )
+    # Redact Authorization, x-goog-api-key, and x-api-key headers
+    s = re.sub(
+        r"(Authorization:\s*(?:OAuth|Bearer)\s+|x-goog-api-key:\s*|x-api-key:\s*)[A-Za-z0-9_\-\.\:\~]+",
+        r"\1[REDACTED]",
+        s,
+        flags=re.I,
+    )
     return s
 
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import os
 import shutil
 import sys
@@ -47,6 +48,7 @@ from services.instagram import (
 )
 from services.llm import (
     BANNED_TAGS,
+    _call_gemini,
     _extract_json,
     build_fallback_caption,
     extract_caption_body_and_tags,
@@ -389,6 +391,49 @@ async def test_caption_fallback() -> None:
     assert len(fb["full_text"]) <= 2200
     assert fb["hashtags"][0] == "mychannel"
 
+    # 6. Gemini header authentication (API key in x-goog-api-key header, NOT in URL query parameter)
+    gemini_app = web.Application()
+    captured_requests: list[dict[str, Any]] = []
+
+    async def _mock_gemini(req: web.Request) -> web.Response:
+        captured_requests.append({
+            "query_key": req.query.get("key"),
+            "header_key": req.headers.get("x-goog-api-key"),
+            "url": str(req.url),
+        })
+        return web.json_response({
+            "candidates": [{
+                "content": {
+                    "parts": [{"text": json.dumps({"caption": "AI Hook", "hashtags": ["music", "uzb"]})}]
+                }
+            }]
+        })
+
+    gemini_app.router.add_post("/models/{model}:generateContent", _mock_gemini)
+    g_server = TestServer(gemini_app)
+    await g_server.start_server()
+    try:
+        secret_key = "AIzaSyTestSecretKey_998877"
+        res_text = await _call_gemini(
+            prompt="Write a caption",
+            frames=[],
+            api_key=secret_key,
+            model="gemini-2.5-flash",
+            lang="uz",
+            base_url=f"http://{g_server.host}:{g_server.port}",
+        )
+        assert len(captured_requests) == 1
+        req_info = captured_requests[0]
+        # Assert key is NOT in query string
+        assert req_info["query_key"] is None, "API key MUST NOT be passed in URL query parameter"
+        assert secret_key not in req_info["url"], "API key MUST NOT appear anywhere in URL"
+        # Assert key is passed securely in x-goog-api-key header
+        assert req_info["header_key"] == secret_key, "API key MUST be passed in x-goog-api-key header"
+        parsed = _extract_json(res_text)
+        assert parsed is not None and parsed["caption"] == "AI Hook"
+    finally:
+        await g_server.close()
+
 
 async def test_best_time_scoring() -> None:
     """Test 4: follower-activity smoothing, quiet hours, and best slot scoring."""
@@ -560,12 +605,17 @@ async def test_token_encryption_and_redaction() -> None:
     log_sample = (
         "POST https://graph.instagram.com/v21.0/media?access_token=EAABtest123456789\n"
         "Headers: Authorization: OAuth EAABsecretToken987654321\n"
+        "Headers: x-goog-api-key: AIzaSySecretGeminiKey12345\n"
+        "Headers: x-api-key: sk-ant-secretAnthropicKey98765\n"
+        "URL: ?key=AIzaSySecretGeminiKey12345&api_key=AIzaSySecretGeminiKey12345\n"
         "Error: TICK_SECRET=mySuperSecretPass on tick\n"
         "client_secret=topsecret_password_abc"
     )
     redacted = redact_token(log_sample)
     assert "EAABtest123456789" not in redacted
     assert "EAABsecretToken987654321" not in redacted
+    assert "AIzaSySecretGeminiKey12345" not in redacted
+    assert "sk-ant-secretAnthropicKey98765" not in redacted
     assert "mySuperSecretPass" not in redacted
     assert "topsecret_password_abc" not in redacted
     assert "[REDACTED]" in redacted
