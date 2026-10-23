@@ -146,7 +146,7 @@ async def execute(
         except FFmpegTimeout:
             failure = texts.FFMPEG_TIMEOUT
         except InvalidInput as exc:
-            failure = str(exc)
+            failure = escape_html(str(exc))
         except FFmpegError:
             failure = texts.FFMPEG_FAIL
         finally:

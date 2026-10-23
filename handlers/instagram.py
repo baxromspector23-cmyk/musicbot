@@ -203,7 +203,7 @@ async def on_video_message(message: Message, state: FSMContext, bot: Bot) -> Non
     try:
         intake.precheck_size(inc)
     except UserError as exc:
-        await message.answer(str(exc))
+        await message.answer(escape_html(str(exc)))
         return
 
     status = await message.answer(texts.DOWNLOADING)
@@ -215,7 +215,7 @@ async def on_video_message(message: Message, state: FSMContext, bot: Bot) -> Non
         info = await intake.fetch(bot, inc, temp_file)
     except UserError as exc:
         temp_file.unlink(missing_ok=True)
-        await status.edit_text(str(exc))
+        await status.edit_text(escape_html(str(exc)))
         return
     except Exception:
         temp_file.unlink(missing_ok=True)
@@ -236,7 +236,7 @@ async def _start_video_intake(
     try:
         info, specs = await video_prep.check_video_specs(video_path)
     except UserError as exc:
-        await bot.send_message(chat_id, str(exc))
+        await bot.send_message(chat_id, escape_html(str(exc)))
         return
 
     await state.update_data(
@@ -305,7 +305,7 @@ async def _process_normalization(
             raw_path, out_file, dummy_info, specs, aspect_mode=aspect_mode, on_progress=on_progress
         )
     except UserError as exc:
-        await status_msg.edit_text(str(exc))
+        await status_msg.edit_text(escape_html(str(exc)))
         return
     except Exception as exc:
         await status_msg.edit_text(texts.FFMPEG_FAIL)

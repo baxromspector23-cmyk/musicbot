@@ -13,7 +13,7 @@ from handlers.merge import add_file
 from services import intake
 from services import session as store
 from services.tags import Tags
-from utils import UserError
+from utils import UserError, escape_html
 
 log = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def on_file(message: Message, bot: Bot, state: FSMContext) -> None:
     try:
         intake.precheck_size(inc)
     except UserError as exc:
-        await message.answer(str(exc))
+        await message.answer(escape_html(str(exc)))
         return
     await state.clear()
     store.end_session(uid)
@@ -50,7 +50,7 @@ async def on_file(message: Message, bot: Bot, state: FSMContext) -> None:
         cover = await intake.load_cover(work, dest, info)
     except UserError as exc:
         store.remove_dir(work)
-        await status.edit_text(str(exc))
+        await status.edit_text(escape_html(str(exc)))
         return
     except Exception:
         store.remove_dir(work)

@@ -168,12 +168,13 @@ def build_fallback_caption(
 ) -> dict[str, Any]:
     """Deterministic fallback caption if AI is unavailable."""
     desc = description.strip()
-    if not desc or desc.lower() == "avto":
+    clean_desc, desc_tags = extract_caption_body_and_tags(desc)
+    if not clean_desc or clean_desc.lower() == "avto":
         body = "Yangi video lavha! Ko'ring, baho bering va saqlab qo'ying 🎬"
     else:
-        body = f"{desc}\n\nFikringizni izohlarda qoldiring va do'stlaringizga ulashing ✨"
+        body = f"{clean_desc}\n\nFikringizni izohlarda qoldiring va do'stlaringizga ulashing ✨"
 
-    hashtags = validate_and_format_hashtags([], brand_tag, default_tags or config.DEFAULT_HASHTAGS, limit)
+    hashtags = validate_and_format_hashtags(desc_tags, brand_tag, default_tags or config.DEFAULT_HASHTAGS, limit)
     full_text = f"{body}\n\n{' '.join('#' + t for t in hashtags)}".strip()
     return {
         "caption": body,
@@ -356,18 +357,19 @@ async def generate_caption(
 
             parsed = _extract_json(raw_text)
             if parsed and "caption" in parsed:
-                caption_body = str(parsed["caption"]).strip()
+                raw_body = str(parsed["caption"]).strip()
+                clean_body, inline_tags = extract_caption_body_and_tags(raw_body)
                 raw_tags = parsed.get("hashtags", [])
-                if isinstance(raw_tags, list):
-                    clean_tags = validate_and_format_hashtags(
-                        [str(t) for t in raw_tags], brand_tag, default_tags, limit
-                    )
-                else:
-                    clean_tags = validate_and_format_hashtags([], brand_tag, default_tags, limit)
+                if not isinstance(raw_tags, list):
+                    raw_tags = []
+                all_raw_tags = [str(t) for t in raw_tags] + inline_tags
+                clean_tags = validate_and_format_hashtags(
+                    all_raw_tags, brand_tag, default_tags, limit
+                )
 
-                full_text = f"{caption_body}\n\n{' '.join('#' + t for t in clean_tags)}".strip()
+                full_text = f"{clean_body}\n\n{' '.join('#' + t for t in clean_tags)}".strip()
                 return {
-                    "caption": caption_body,
+                    "caption": clean_body,
                     "hashtags": clean_tags,
                     "full_text": full_text[:2200],
                     "is_fallback": False,

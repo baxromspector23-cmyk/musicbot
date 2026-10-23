@@ -391,6 +391,17 @@ async def test_caption_fallback() -> None:
     assert len(fb["full_text"]) <= 2200
     assert fb["hashtags"][0] == "mychannel"
 
+    # Fallback with description containing excess hashtags (Issue 16)
+    fb_excess = build_fallback_caption(
+        "Trek premyerasi #hit #uzb #track #bass #sound #rap #trap #remix",
+        brand_tag="mychannel",
+        limit=5,
+    )
+    assert len(fb_excess["hashtags"]) == 5
+    assert "#" not in fb_excess["caption"]
+    assert "Trek premyerasi" in fb_excess["caption"]
+    assert fb_excess["hashtags"][0] == "mychannel"
+
     # 6. Gemini header authentication (API key in x-goog-api-key header, NOT in URL query parameter)
     gemini_app = web.Application()
     captured_requests: list[dict[str, Any]] = []

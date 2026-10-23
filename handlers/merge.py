@@ -60,7 +60,7 @@ async def add_file(bot: Bot, message: Message, s: Session, inc: intake.Incoming,
         info = await intake.fetch(bot, inc, dest)
     except UserError as exc:
         dest.unlink(missing_ok=True)
-        await message.answer(str(exc))
+        await message.answer(escape_html(str(exc)))
         return
     except Exception:
         dest.unlink(missing_ok=True)
