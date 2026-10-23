@@ -148,16 +148,29 @@ async def tick(request: web.Request) -> web.Response:
 
     bot: Bot = request.app["bot"]
     published_count = await scheduler.process_due_posts(bot)
+    await scheduler.check_daily_token_refresh(bot)
     return web.json_response({"ok": True, "published": published_count})
 
 
+async def serve_media(request: web.Request) -> web.Response:
+    """Serve temporary prepared Reel video to Meta crawler during publishing."""
+    filename = request.match_info.get("filename", "")
+    if "/" in filename or "\\" in filename or ".." in filename or not filename.endswith(".mp4"):
+        return web.Response(status=403, text="forbidden")
+    file_path = config.TEMP_ROOT / "reels" / filename
+    if not file_path.exists():
+        return web.Response(status=404, text="not found")
+    return web.FileResponse(file_path)
+
+
 def create_app(bot: Bot, dp: Dispatcher) -> web.Application:
-    """aiohttp app with /health, /tick and the Telegram webhook route."""
+    """aiohttp app with /health, /tick, /media and the Telegram webhook route."""
     app = web.Application()
     app["bot"] = bot
     app.router.add_get("/health", health)
     app.router.add_get("/tick", tick)
     app.router.add_post("/tick", tick)
+    app.router.add_get("/media/{filename}", serve_media)
 
     # handle_in_background=True (aiogram default, verified): the update is processed in a
     # background task and the HTTP response is returned immediately, so FFmpeg never blocks it.

@@ -157,14 +157,32 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
         if not info.has_video:
             raise ValueError("downloaded file has no video stream")
 
-        # 3. Create Reels Container
+        # 3. Create Reels Container (support video_url or rupload)
         caption = post.caption or ""
         file_size = temp_video.stat().st_size
-        container_id = await client.create_reel_container(caption=caption, file_size=file_size, share_to_feed=True)
+        video_url: str | None = None
+
+        if config.BASE_URL:
+            video_url = f"{config.BASE_URL.rstrip('/')}/media/{temp_video.name}"
+        elif config.IG_LOGIN_MODE == "instagram" and post.tg_file_id:
+            try:
+                tg_file = await bot.get_file(post.tg_file_id)
+                if tg_file.file_path:
+                    video_url = f"https://api.telegram.org/file/bot{config.BOT_TOKEN}/{tg_file.file_path}"
+            except Exception as exc:
+                log.warning("could not get Telegram file URL: %s", exc)
+
+        container_id = await client.create_reel_container(
+            caption=caption,
+            file_size=file_size,
+            video_url=video_url,
+            share_to_feed=True,
+        )
         await db.update_post(post_id, ig_container_id=container_id)
 
-        # 4. Stream Upload to rupload
-        await client.upload_video_resumable(container_id, temp_video)
+        # 4. Stream Upload to rupload (only if video_url was not supplied)
+        if not video_url:
+            await client.upload_video_resumable(container_id, temp_video)
 
         # 5. Poll Status
         await client.poll_container_status(container_id, timeout=600)

@@ -124,15 +124,26 @@ class InstagramClient:
                 log.warning("failed to fetch online_followers insight: %s", exc)
                 return None
 
-    async def create_reel_container(self, caption: str, file_size: int, share_to_feed: bool = True) -> str:
-        """Initialize resumable upload and create media container."""
+    async def create_reel_container(
+        self,
+        caption: str,
+        file_size: int = 0,
+        video_url: str | None = None,
+        share_to_feed: bool = True,
+    ) -> str:
+        """Initialize resumable upload or video_url container."""
         url = f"{self.base_url}/{self.ig_user_id}/media"
-        params = self._auth_params({
+        payload: dict[str, Any] = {
             "media_type": "REELS",
-            "upload_type": "resumable",
             "caption": caption,
             "share_to_feed": "true" if share_to_feed else "false",
-        })
+        }
+        if video_url:
+            payload["video_url"] = video_url
+        else:
+            payload["upload_type"] = "resumable"
+
+        params = self._auth_params(payload)
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30)) as s:
             async with s.post(url, params=params) as resp:
                 data = await resp.json()
