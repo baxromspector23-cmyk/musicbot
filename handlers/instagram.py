@@ -19,7 +19,7 @@ from keyboards import MenuCb
 from services import besttime, db, intake, llm, scheduler, session as store, tokens, video_prep
 from services.instagram import InstagramClient
 from states import IgStates
-from utils import UserError, fmt_duration, progress_bar
+from utils import UserError, escape_html, fmt_duration, progress_bar
 
 log = logging.getLogger(__name__)
 
@@ -50,14 +50,14 @@ async def cmd_queue(message: Message) -> None:
     lines = [texts.QUEUE_TITLE]
     for p in posts:
         loc_time = p.scheduled_at.astimezone(tz).strftime("%d.%m %H:%M") if p.scheduled_at else "—"
-        cap = (p.caption or "")[:40].replace("\n", " ")
+        cap = escape_html((p.caption or "")[:40].replace("\n", " "))
         lines.append(f"• <b>#{p.id}</b> | 📅 {loc_time} | 📝 {cap}...")
 
     await message.answer("\n".join(lines))
     # Send management cards for up to 3 upcoming posts
     for p in posts[:3]:
         loc_time = p.scheduled_at.astimezone(tz).strftime("%d.%m %H:%M") if p.scheduled_at else "—"
-        cap = (p.caption or "")[:50]
+        cap = escape_html((p.caption or "")[:50])
         text = f"Post <b>#{p.id}</b> ({loc_time}):\n<i>{cap}</i>"
         await message.answer(text, reply_markup=kb.post_manage_kb(p.id))
 
@@ -74,8 +74,8 @@ async def cmd_history(message: Message) -> None:
     lines = [texts.HISTORY_TITLE]
     for p in posts:
         loc_time = p.published_at.astimezone(tz).strftime("%d.%m %H:%M") if p.published_at else "—"
-        cap = (p.caption or "")[:35].replace("\n", " ")
-        link = p.permalink or "—"
+        cap = escape_html((p.caption or "")[:35].replace("\n", " "))
+        link = escape_html(p.permalink or "—")
         lines.append(f"• {loc_time} | <a href='{link}'>{cap}</a>")
 
     await message.answer("\n".join(lines), disable_web_page_preview=True)
@@ -106,9 +106,10 @@ async def cmd_stats(message: Message) -> None:
             reach = m.get("reach", 0)
             likes = m.get("likes", 0)
             comments = m.get("comments", 0)
-            cap = (p.caption or "")[:30].replace("\n", " ")
+            cap = escape_html((p.caption or "")[:30].replace("\n", " "))
+            link = escape_html(p.permalink or "")
             msg_lines.append(
-                f"🎬 <a href='{p.permalink}'>{cap}</a>\n"
+                f"🎬 <a href='{link}'>{cap}</a>\n"
                 f"👁 {plays:,} plays | 👥 {reach:,} reach | ❤️ {likes:,} | 💬 {comments:,}\n"
             )
         except Exception:
@@ -156,13 +157,13 @@ async def cmd_igstatus(message: Message) -> None:
         last_res = f"Post #{last_pub[0].id} joylandi"
 
     text = texts.IGSTATUS_INFO.format(
-        username=username,
-        user_id=user_id,
+        username=escape_html(username),
+        user_id=escape_html(str(user_id)),
         days_left=tok_info.get("days_left", 0),
-        token_status=tok_info.get("status", "noma'lum"),
-        insights_status=insights_status,
+        token_status=escape_html(str(tok_info.get("status", "noma'lum"))),
+        insights_status=escape_html(insights_status),
         queue_count=len(queue),
-        last_result=last_res,
+        last_result=escape_html(last_res),
     )
     await message.answer(text)
 
@@ -397,8 +398,8 @@ async def on_description_entered(message: Message, state: FSMContext, bot: Bot) 
     await state.update_data(last_desc=desc_text)
 
     preview_text = texts.REEL_PREVIEW_CARD.format(
-        caption=caption,
-        hashtags=" ".join("#" + t for t in hashtags),
+        caption=escape_html(caption),
+        hashtags=escape_html(" ".join("#" + t for t in hashtags)),
     )
     if ai_res.get("is_fallback"):
         preview_text += f"\n\n⚠️ <i>{texts.REEL_AI_FALLBACK}</i>"
@@ -432,8 +433,8 @@ async def on_rewrite_caption(cb: CallbackQuery, state: FSMContext, bot: Bot) -> 
     await db.update_post(post_id, caption=ai_res["full_text"], hashtags=ai_res["hashtags"])
 
     preview_text = texts.REEL_PREVIEW_CARD.format(
-        caption=ai_res["caption"],
-        hashtags=" ".join("#" + t for t in ai_res["hashtags"]),
+        caption=escape_html(ai_res["caption"]),
+        hashtags=escape_html(" ".join("#" + t for t in ai_res["hashtags"])),
     )
     await cb.message.edit_text(preview_text, reply_markup=kb.reel_preview_kb(post_id))
 
@@ -460,13 +461,22 @@ async def on_caption_edited(message: Message, state: FSMContext) -> None:
         await state.clear()
         return
 
-    new_body = (message.text or "")[:2000].strip()
-    full_text = f"{new_body}\n\n{' '.join('#' + t for t in post.hashtags)}".strip()
-    await db.update_post(post_id, caption=full_text)
+    raw_input = (message.text or "")[:2200].strip()
+    clean_body, caption_tags = llm.extract_caption_body_and_tags(raw_input)
+
+    # If user included hashtags in their edited caption, prioritize them;
+    # otherwise retain existing hashtags
+    tags_source = caption_tags if caption_tags else (post.hashtags or [])
+    clean_tags = llm.validate_and_format_hashtags(
+        tags_source, config.BRAND_HASHTAG, limit=config.HASHTAG_LIMIT
+    )
+
+    full_text = f"{clean_body}\n\n{' '.join('#' + t for t in clean_tags)}".strip() if clean_tags else clean_body
+    await db.update_post(post_id, caption=full_text, hashtags=clean_tags)
 
     preview_text = texts.REEL_PREVIEW_CARD.format(
-        caption=new_body,
-        hashtags=" ".join("#" + t for t in post.hashtags),
+        caption=escape_html(clean_body),
+        hashtags=escape_html(" ".join("#" + t for t in clean_tags)),
     )
     await message.answer(preview_text, reply_markup=kb.reel_preview_kb(post_id))
 
@@ -494,17 +504,17 @@ async def on_hashtags_edited(message: Message, state: FSMContext) -> None:
         await state.clear()
         return
 
-    raw_tags = [t.strip().lstrip("#") for t in (message.text or "").split()]
+    raw_tags = llm.parse_raw_hashtags(message.text or "")
     clean_tags = llm.validate_and_format_hashtags(raw_tags, config.BRAND_HASHTAG, limit=config.HASHTAG_LIMIT)
 
-    body_match = (post.caption or "").split("\n\n")
-    body = body_match[0] if body_match else ""
-    full_text = f"{body}\n\n{' '.join('#' + t for t in clean_tags)}".strip()
+    # Safely extract body while preserving all paragraphs intact
+    body, _ = llm.extract_caption_body_and_tags(post.caption or "")
+    full_text = f"{body}\n\n{' '.join('#' + t for t in clean_tags)}".strip() if clean_tags else body
     await db.update_post(post_id, caption=full_text, hashtags=clean_tags)
 
     preview_text = texts.REEL_PREVIEW_CARD.format(
-        caption=body,
-        hashtags=" ".join("#" + t for t in clean_tags),
+        caption=escape_html(body),
+        hashtags=escape_html(" ".join("#" + t for t in clean_tags)),
     )
     await message.answer(preview_text, reply_markup=kb.reel_preview_kb(post_id))
 
@@ -525,7 +535,7 @@ async def on_confirm_caption(cb: CallbackQuery, state: FSMContext) -> None:
     # Get explanation of best time
     _, explanation = await besttime.pick_best_slot(client)
     await cb.message.edit_text(
-        texts.REEL_TIME_CHOOSE.format(explanation=explanation),
+        texts.REEL_TIME_CHOOSE.format(explanation=escape_html(explanation)),
         reply_markup=kb.reel_time_kb(post_id),
     )
 
@@ -608,7 +618,7 @@ async def _finalize_scheduling(
             pos = idx
             break
 
-    preview = (post.caption or "")[:80]
+    preview = escape_html((post.caption or "")[:80])
     confirm_text = texts.REEL_SCHEDULED_CARD.format(
         local_time=local_str,
         tz=config.TZ,

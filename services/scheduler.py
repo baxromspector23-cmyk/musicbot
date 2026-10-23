@@ -24,6 +24,7 @@ from services.instagram import (
 )
 from services.probe import probe
 from services.tokens import redact_token
+from utils import escape_html
 
 log = logging.getLogger(__name__)
 
@@ -169,7 +170,7 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
         log.info("post %d successfully published: %s", post_id, permalink)
 
         # Notify Owner
-        await _notify_owner(bot, post.owner_id, texts.IG_PUBLISHED.format(permalink=permalink))
+        await _notify_owner(bot, post.owner_id, texts.IG_PUBLISHED.format(permalink=escape_html(permalink or "")))
         return True
 
     except InstagramTokenError as exc:
@@ -221,7 +222,7 @@ async def _notify_owner(bot: Bot, owner_id: int, text: str) -> None:
 
 
 async def _notify_failure_with_buttons(bot: Bot, post: db.Post, reason: str) -> None:
-    text = texts.IG_PUBLISH_FAILED.format(reason=reason[:150])
+    text = texts.IG_PUBLISH_FAILED.format(reason=escape_html(reason[:150]))
     buttons = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="🔄 Qayta urinish", callback_data=f"ig_retry_{post.id}"),
@@ -259,7 +260,7 @@ async def _check_reminders(bot: Bot, now_utc: datetime) -> None:
             p.reminder_sent = True
 
     for p in posts_to_remind:
-        preview = (p.caption or "")[:60]
+        preview = escape_html((p.caption or "")[:60])
         text = texts.IG_REMINDER_10MIN.format(preview=preview)
         kb = InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"ig_cancel_{p.id}")
@@ -310,7 +311,7 @@ async def _check_stats_reports(bot: Bot, now_utc: datetime) -> None:
 
             msg = (
                 f"📈 <b>Reel 24 soatlik statistikasi:</b>\n\n"
-                f"🔗 {p.permalink}\n"
+                f"🔗 {escape_html(p.permalink or '')}\n"
                 f"👁 Ko'rishlar (plays): {plays:,}\n"
                 f"👥 Qamrov (reach): {reach:,}\n"
                 f"❤️ Layklar: {likes:,}\n"
@@ -342,7 +343,7 @@ async def handle_startup_catchup(bot: Bot) -> None:
     for p in overdue_posts:
         if p.scheduled_at and p.scheduled_at < six_hours_ago:
             # Overdue by > 6 hours: ask owner instead of blind publishing
-            preview = (p.caption or "")[:60]
+            preview = escape_html((p.caption or "")[:60])
             text = texts.IG_OVERDUE_ASK.format(preview=preview)
             kb = InlineKeyboardMarkup(inline_keyboard=[
                 [

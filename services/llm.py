@@ -40,24 +40,102 @@ def sanitize_hashtag(tag: str) -> str:
     return re.sub(r"[^a-z0-9_а-яёўқғҳ]", "", t)
 
 
+def parse_raw_hashtags(raw_input: str | list[str]) -> list[str]:
+    """Parse hashtags from string or list, splitting on commas, semicolons, whitespace, or consecutive #."""
+    if isinstance(raw_input, list):
+        text = " ".join(str(item) for item in raw_input)
+    else:
+        text = str(raw_input or "")
+
+    # Separate attached hashes like '#tag1#tag2' -> ' #tag1 #tag2'
+    text = re.sub(r"(?<=[\w\d])#", " #", text)
+    # Split on whitespace, commas, semicolons
+    tokens = re.split(r"[\s,;]+", text)
+    result: list[str] = []
+    for tok in tokens:
+        cleaned = tok.strip().lstrip("#").strip(",; ")
+        if cleaned:
+            result.append(cleaned)
+    return result
+
+
+def extract_caption_body_and_tags(caption: str) -> tuple[str, list[str]]:
+    """Separate caption body from hashtags, preserving all body paragraphs intact."""
+    if not caption:
+        return "", []
+
+    raw = caption.strip()
+
+    # 1. Check if the last paragraph / block consists exclusively of hashtags
+    paragraphs = re.split(r"\n\s*\n", raw)
+    trailing_tags: list[str] = []
+
+    if len(paragraphs) > 1:
+        last_p = paragraphs[-1].strip()
+        words = last_p.split()
+        if words and all(w.strip(",;").startswith("#") for w in words):
+            trailing_tags = parse_raw_hashtags(last_p)
+            body_paragraphs = paragraphs[:-1]
+            raw_body = "\n\n".join(body_paragraphs).strip()
+        else:
+            raw_body = raw
+    else:
+        lines = raw.split("\n")
+        if len(lines) > 1:
+            last_line = lines[-1].strip()
+            words = last_line.split()
+            if words and all(w.strip(",;").startswith("#") for w in words):
+                trailing_tags = parse_raw_hashtags(last_line)
+                raw_body = "\n".join(lines[:-1]).strip()
+            else:
+                raw_body = raw
+        else:
+            raw_body = raw
+
+    # 2. Extract any trailing hashtags at the end of raw_body
+    end_tags_match = re.search(r"(\s*[,;]?\s*#[\wа-яёўқғҳ]+)+$", raw_body)
+    if end_tags_match:
+        trailing_end_str = end_tags_match.group(0)
+        trailing_tags.extend(parse_raw_hashtags(trailing_end_str))
+        raw_body = raw_body[:end_tags_match.start()].strip()
+
+    # 3. Extract any remaining inline hashtags from raw_body
+    inline_tags_raw = re.findall(r"#([\wа-яёўқғҳ]+)", raw_body, flags=re.IGNORECASE)
+
+    # Clean remaining inline hashtags in body text by removing leading '#' so text remains natural
+    clean_body = re.sub(r"#([\wа-яёўқғҳ]+)", r"\1", raw_body).strip()
+
+    # Combine trailing tags and inline tags (preserving order, deduplicated)
+    all_tags: list[str] = []
+    seen: set[str] = set()
+    for t in trailing_tags + inline_tags_raw:
+        clean = sanitize_hashtag(t)
+        if clean and clean not in seen and len(clean) >= 2:
+            seen.add(clean)
+            all_tags.append(clean)
+
+    return clean_body, all_tags
+
+
 def validate_and_format_hashtags(
-    tags: list[str],
+    tags: list[str] | str,
     brand_tag: str = "",
     default_tags: list[str] | None = None,
     limit: int = 5,
 ) -> list[str]:
-    """Ensure at most `limit` unique, valid, non-banned hashtags."""
+    """Ensure at most `limit` unique, valid, non-banned hashtags, properly handling commas and lists."""
+    parsed_tags = parse_raw_hashtags(tags)
     seen: set[str] = set()
     result: list[str] = []
 
     # Include brand tag first if present
     if brand_tag:
         clean_brand = sanitize_hashtag(brand_tag)
-        if clean_brand and clean_brand not in BANNED_TAGS:
+        if clean_brand and clean_brand not in BANNED_TAGS and len(clean_brand) >= 2:
             seen.add(clean_brand)
             result.append(clean_brand)
 
-    for raw in tags:
+    for raw in parsed_tags:
         clean = sanitize_hashtag(raw)
         if clean and clean not in seen and clean not in BANNED_TAGS and len(clean) >= 2:
             seen.add(clean)
@@ -68,12 +146,15 @@ def validate_and_format_hashtags(
     # If too few, supplement with default tags
     if len(result) < limit and default_tags:
         for d in default_tags:
-            clean = sanitize_hashtag(d)
-            if clean and clean not in seen and clean not in BANNED_TAGS:
-                seen.add(clean)
-                result.append(clean)
-                if len(result) >= limit:
-                    break
+            for parsed_d in parse_raw_hashtags(d):
+                clean = sanitize_hashtag(parsed_d)
+                if clean and clean not in seen and clean not in BANNED_TAGS and len(clean) >= 2:
+                    seen.add(clean)
+                    result.append(clean)
+                    if len(result) >= limit:
+                        break
+            if len(result) >= limit:
+                break
 
     return result[:limit]
 

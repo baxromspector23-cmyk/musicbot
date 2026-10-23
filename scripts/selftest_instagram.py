@@ -49,11 +49,14 @@ from services.llm import (
     BANNED_TAGS,
     _extract_json,
     build_fallback_caption,
+    extract_caption_body_and_tags,
+    parse_raw_hashtags,
     sanitize_hashtag,
     validate_and_format_hashtags,
 )
 from services.probe import MediaInfo, probe
 from services.tokens import decrypt_token, encrypt_token, redact_token
+from utils import escape_html
 
 RESULTS: list[tuple[str, bool, str]] = []
 TMP = Path(tempfile.mkdtemp(prefix="ig_selftest_"))
@@ -309,6 +312,51 @@ async def test_hashtag_sanitizer() -> None:
     # Unique and <= 5
     assert len(cleaned) == 5
     assert len(set(cleaned)) == 5
+
+    # 4. Comma & semicolon parsing (Issue 1)
+    comma_input = "musiqa, toshkent, uzb; rap, hiphop, remix"
+    parsed_comma = parse_raw_hashtags(comma_input)
+    assert parsed_comma == ["musiqa", "toshkent", "uzb", "rap", "hiphop", "remix"]
+    formatted_from_comma = validate_and_format_hashtags(comma_input, limit=5)
+    assert len(formatted_from_comma) == 5
+    assert formatted_from_comma == ["musiqa", "toshkent", "uzb", "rap", "hiphop"]
+
+    # 5. Multi-paragraph caption extraction (Issue 2)
+    multi_p_caption = (
+        "1-abzats: Yangi trek premyerasi!\n\n"
+        "2-abzats: Barcha platformalarda tinglang va baho bering.\n\n"
+        "3-abzats: Do'stlaringiz bilan ulashing!\n\n"
+        "#musiqa #toshkent #uzbekistan"
+    )
+    body, tags = extract_caption_body_and_tags(multi_p_caption)
+    assert body == (
+        "1-abzats: Yangi trek premyerasi!\n\n"
+        "2-abzats: Barcha platformalarda tinglang va baho bering.\n\n"
+        "3-abzats: Do'stlaringiz bilan ulashing!"
+    )
+    assert tags == ["musiqa", "toshkent", "uzbekistan"]
+
+    # 6. Inline hashtags and strict 5-tag cap (Issue 3)
+    inline_caption = (
+        "Eshitib ko'ring #musiqa va #yangilik!\n\n"
+        "Zo'r #kayfiyat ulashamiz. #uzb #toshkent #bass #remix #rap"
+    )
+    body2, tags2 = extract_caption_body_and_tags(inline_caption)
+    assert "#" not in body2
+    assert "Eshitib ko'ring musiqa va yangilik!" in body2
+    assert "Zo'r kayfiyat ulashamiz." in body2
+    final_tags = validate_and_format_hashtags(tags2, limit=5)
+    assert len(final_tags) == 5
+    assert set(final_tags).issubset({"musiqa", "yangilik", "kayfiyat", "uzb", "toshkent", "bass", "remix", "rap"})
+
+    # 7. HTML escaping for Telegram messages (Issue 4)
+    raw_user_input = "Trek <Yulduz> & Bass <Beat> 100% Zo'r!"
+    escaped = escape_html(raw_user_input)
+    assert "<" not in escaped
+    assert ">" not in escaped
+    assert "&amp;" in escaped
+    assert "&lt;Yulduz&gt;" in escaped
+    assert escape_html(None) == ""
 
 
 async def test_caption_fallback() -> None:

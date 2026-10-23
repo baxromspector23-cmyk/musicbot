@@ -1,6 +1,7 @@
 """Pure helpers: time parsing, formatting, filename sanitizing."""
 from __future__ import annotations
 
+import html
 import re
 import unicodedata
 
@@ -9,6 +10,13 @@ import config
 _END_WORDS = {"oxir", "end"}
 _SEG_RE = re.compile(r"^\d+$")
 _LAST_RE = re.compile(r"^(\d+(\.\d+)?|\.\d+)$")
+
+
+def escape_html(text: object) -> str:
+    """Escape &, <, > for safe Telegram HTML formatting."""
+    if text is None:
+        return ""
+    return html.escape(str(text), quote=False)
 
 
 class UserError(Exception):

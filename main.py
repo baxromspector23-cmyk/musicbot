@@ -7,6 +7,8 @@ import shutil
 import sys
 
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
@@ -182,7 +184,7 @@ async def run_polling(bot: Bot, dp: Dispatcher) -> None:
 def main() -> None:
     """Start the bot."""
     setup_logging()
-    bot = Bot(config.BOT_TOKEN)
+    bot = Bot(config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = build_dispatcher()
     if config.BASE_URL:
         web.run_app(create_app(bot, dp), host="0.0.0.0", port=config.PORT, print=None)
