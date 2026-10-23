@@ -36,6 +36,51 @@ from services import session as store
 log = logging.getLogger("main")
 
 _cleanup_task: asyncio.Task[None] | None = None
+_keepalive_task: asyncio.Task[None] | None = None
+
+
+async def keep_awake_loop() -> None:
+    """Render Free tier spins down web services after 15 minutes of inactivity.
+
+    This loop pings the service's own public /health endpoint every 8 minutes (480s).
+    Render edge router treats this as incoming HTTP traffic, resetting the 15-minute
+    sleep timer and ensuring continuous uptime.
+    """
+    import os
+    import aiohttp
+
+    target_base = (
+        os.getenv("KEEP_AWAKE_URL", "").strip()
+        or config.RENDER_EXTERNAL_URL
+        or config.BASE_URL
+        or ""
+    ).rstrip("/")
+
+    if not target_base:
+        log.info("Keep-awake: no external URL configured (running in polling mode)")
+        return
+
+    health_url = f"{target_base}/health"
+    log.info("Keep-awake active: pinging %s every 8 minutes to prevent Render spin-down", health_url)
+
+    # Initial delay so web server can bind port and start handling requests
+    await asyncio.sleep(45)
+
+    while True:
+        try:
+            timeout = aiohttp.ClientTimeout(total=20)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(health_url) as resp:
+                    if resp.status == 200:
+                        log.debug("Keep-awake ping ok: %s -> %d", health_url, resp.status)
+                    else:
+                        log.warning("Keep-awake ping: %s returned status %d", health_url, resp.status)
+        except asyncio.CancelledError:
+            break
+        except Exception as exc:
+            log.warning("Keep-awake ping error: %s (will retry in 8 minutes)", exc)
+
+        await asyncio.sleep(480)  # 8 minutes (Render free sleeps after 15 min idle)
 
 
 def setup_logging() -> None:
@@ -77,7 +122,7 @@ def build_dispatcher() -> Dispatcher:
 
 async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
     """Verify binaries, wipe temp, init db, start scheduler, set commands/webhook."""
-    global _cleanup_task
+    global _cleanup_task, _keepalive_task
     for tool in ("ffmpeg", "ffprobe"):
         if shutil.which(tool) is None:
             log.critical("%s not found in PATH", tool)
@@ -115,6 +160,7 @@ async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
         log.info("no public URL configured: polling mode")
 
     _cleanup_task = asyncio.create_task(store.cleanup_loop())
+    _keepalive_task = asyncio.create_task(keep_awake_loop())
     scheduler.start_scheduler(bot)
 
 
@@ -123,6 +169,8 @@ async def on_shutdown() -> None:
     scheduler.stop_scheduler()
     if _cleanup_task is not None:
         _cleanup_task.cancel()
+    if _keepalive_task is not None:
+        _keepalive_task.cancel()
 
 
 async def health(_: web.Request) -> web.Response:

@@ -40,7 +40,7 @@ services:
       - key: BRAND_HASHTAG
         sync: false
       - key: DEFAULT_HASHTAGS
-        value: "reels,uzbekistan,tashkent,video,trend"
+        value: "dasturlash,coding,python,programmer,ituzbekistan"
       - key: HASHTAG_LIMIT
         value: "5"
       - key: TZ
