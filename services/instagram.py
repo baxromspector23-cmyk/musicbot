@@ -88,8 +88,15 @@ class InstagramClient:
         if status != 200:
             raise InstagramError(f"Unexpected HTTP {status} from Instagram: {data}")
 
+    def _is_direct_mode(self) -> bool:
+        return self.token == "DIRECT_SESSION_ACTIVE" and "127.0.0.1" not in self.base_url and "localhost" not in self.base_url
+
     async def get_account_info(self) -> dict[str, Any]:
         """Fetch basic account details (username, id)."""
+        if self._is_direct_mode():
+            from services import ig_direct
+            return await ig_direct.get_account_info()
+
         url = f"{self.base_url}/{self.ig_user_id}"
         params = self._auth_params({"fields": "id,username"})
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as s:
@@ -100,6 +107,9 @@ class InstagramClient:
 
     async def get_content_publishing_limit(self) -> dict[str, Any]:
         """Fetch content publishing quota usage."""
+        if self._is_direct_mode():
+            return {"quota_usage": 0, "config": {"quota_total": 50}}
+
         url = f"{self.base_url}/{self.ig_user_id}/content_publishing_limit"
         params = self._auth_params({"fields": "config,quota_usage"})
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as s:
@@ -111,6 +121,9 @@ class InstagramClient:
 
     async def get_online_followers(self) -> dict[str, Any] | None:
         """Fetch online followers insight heatmap."""
+        if self._is_direct_mode():
+            return None
+
         url = f"{self.base_url}/{self.ig_user_id}/insights"
         params = self._auth_params({"metric": "online_followers", "period": "lifetime"})
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as s:
@@ -234,6 +247,10 @@ class InstagramClient:
         """Check if an item with a matching caption snippet was recently published (ambiguous-publish recovery)."""
         if not caption_snippet:
             return None
+        if self._is_direct_mode():
+            from services import ig_direct
+            return await ig_direct.check_recent_media_published(caption_snippet)
+
         url = f"{self.base_url}/{self.ig_user_id}/media"
         params = self._auth_params({"fields": "id,caption,permalink,timestamp", "limit": "10"})
         target = caption_snippet.strip().lower()[:50]
@@ -254,6 +271,10 @@ class InstagramClient:
 
     async def get_media_insights(self, media_id: str) -> dict[str, int]:
         """Fetch engagement metrics (views, likes, comments, reach, saved)."""
+        if self._is_direct_mode():
+            from services import ig_direct
+            return await ig_direct.get_media_insights(media_id)
+
         url = f"{self.base_url}/{media_id}/insights"
         params = self._auth_params({"metric": "views,likes,comments,reach,saved"})
         results: dict[str, int] = {}
@@ -282,6 +303,9 @@ class InstagramClient:
 
     async def refresh_access_token(self, token: str) -> tuple[str, float]:
         """Refresh long-lived access token with official Meta endpoint."""
+        if token == "DIRECT_SESSION_ACTIVE" and "127.0.0.1" not in self.base_url and "localhost" not in self.base_url:
+            return "DIRECT_SESSION_ACTIVE", float(365 * 86400)
+
         if config.IG_LOGIN_MODE == "instagram":
             if "127.0.0.1" in self.base_url or "localhost" in self.base_url:
                 url = f"{self.base_url}/refresh_access_token"

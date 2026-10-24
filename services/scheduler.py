@@ -159,52 +159,71 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
         if not info.has_video:
             raise ValueError("downloaded file has no video stream")
 
-        # 3. Create Reels Container (support video_url or rupload)
-        caption = post.caption or ""
-        file_size = temp_video.stat().st_size
-        video_url: str | None = None
+        # 3. Prepare caption with guaranteed hashtags
+        caption = (post.caption or "").strip()
+        if post.hashtags:
+            existing_lower = caption.lower()
+            missing_tags = [
+                f"#{str(t).lstrip('#')}"
+                for t in post.hashtags
+                if str(t).strip() and f"#{str(t).lstrip('#').lower()}" not in existing_lower
+            ]
+            if missing_tags:
+                caption = f"{caption}\n\n{' '.join(missing_tags)}".strip()
 
-        if config.BASE_URL:
-            video_url = f"{config.BASE_URL.rstrip('/')}/media/{temp_video.name}"
-        elif config.IG_LOGIN_MODE == "instagram" and post.tg_file_id:
+        # Check if Direct instagrapi mode is active
+        if client._is_direct_mode():
+            from services import ig_direct
+            media_id, permalink = await ig_direct.upload_reel(temp_video, caption)
+        else:
+            # Official Meta Graph API container & upload flow
+            file_size = temp_video.stat().st_size
+            video_url: str | None = None
+
+            if config.BASE_URL:
+                video_url = f"{config.BASE_URL.rstrip('/')}/media/{temp_video.name}"
+            elif config.IG_LOGIN_MODE == "instagram" and post.tg_file_id:
+                try:
+                    tg_file = await bot.get_file(post.tg_file_id)
+                    if tg_file.file_path:
+                        video_url = f"https://api.telegram.org/file/bot{config.BOT_TOKEN}/{tg_file.file_path}"
+                except Exception as exc:
+                    log.warning("could not get Telegram file URL: %s", exc)
+
+            container_id = await client.create_reel_container(
+                caption=caption,
+                file_size=file_size,
+                video_url=video_url,
+                share_to_feed=True,
+            )
+            await db.update_post(post_id, ig_container_id=container_id)
+
+            # 4. Stream Upload to rupload (only if video_url was not supplied)
+            if not video_url:
+                await client.upload_video_resumable(container_id, temp_video)
+
+            # 5. Poll Status
+            await client.poll_container_status(container_id, timeout=600)
+
+            # 6. Publish with ambiguous recovery
+            media_id = None
+            permalink = None
             try:
-                tg_file = await bot.get_file(post.tg_file_id)
-                if tg_file.file_path:
-                    video_url = f"https://api.telegram.org/file/bot{config.BOT_TOKEN}/{tg_file.file_path}"
-            except Exception as exc:
-                log.warning("could not get Telegram file URL: %s", exc)
+                media_id = await client.publish_container(container_id)
+            except (InstagramTransientError, asyncio.TimeoutError):
+                log.warning("publish call timed out or failed; checking recent media")
+                recovered = await client.check_recent_media_published(caption[:40])
+                if recovered:
+                    media_id, permalink = recovered
+                    log.info("successfully recovered published post %s", media_id)
 
-        container_id = await client.create_reel_container(
-            caption=caption,
-            file_size=file_size,
-            video_url=video_url,
-            share_to_feed=True,
-        )
-        await db.update_post(post_id, ig_container_id=container_id)
+            if not media_id:
+                raise InstagramError("media_publish failed to return media_id")
 
-        # 4. Stream Upload to rupload (only if video_url was not supplied)
-        if not video_url:
-            await client.upload_video_resumable(container_id, temp_video)
+            # 7. Fetch Permalink
+            if not permalink:
+                permalink = await client.get_media_permalink(media_id)
 
-        # 5. Poll Status
-        await client.poll_container_status(container_id, timeout=600)
-
-        # 6. Publish with ambiguous recovery
-        media_id: str | None = None
-        try:
-            media_id = await client.publish_container(container_id)
-        except (InstagramTransientError, asyncio.TimeoutError):
-            log.warning("publish call timed out or failed; checking recent media")
-            recovered = await client.check_recent_media_published(caption[:40])
-            if recovered:
-                media_id, permalink = recovered
-                log.info("successfully recovered published post %s", media_id)
-
-        if not media_id:
-            raise InstagramError("media_publish failed to return media_id")
-
-        # 7. Fetch Permalink
-        permalink = await client.get_media_permalink(media_id)
         now_pub = datetime.now(timezone.utc)
         await db.update_post(
             post_id,

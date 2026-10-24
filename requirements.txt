@@ -8,3 +8,6 @@ aiosqlite>=0.20
 asyncpg>=0.29; sys_platform != "win32"
 cryptography>=42.0
 tzdata
+instagrapi>=2.1
+moviepy>=1.0.3
+pillow>=10.0

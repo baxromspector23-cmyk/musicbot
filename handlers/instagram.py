@@ -204,6 +204,128 @@ async def on_raw_token_paste(message: Message) -> None:
     await _apply_new_ig_token(message, (message.text or "").strip())
 
 
+@router.message(Command("iglogin"))
+async def cmd_iglogin(message: Message) -> None:
+    """Direct Instagram login via instagrapi without Facebook Developer account."""
+    from services import ig_direct
+
+    raw = (message.text or "").strip()
+    parts = raw.split(maxsplit=2)
+
+    # Delete password message from chat for security
+    if len(parts) >= 2:
+        try:
+            await message.delete()
+        except Exception:
+            pass
+
+    if len(parts) < 2:
+        await message.answer(
+            "🔐 <b>Instagram'ga to'g'ridan-to'g'ri ulanish (Facebook'siz):</b>\n\n"
+            "<code>@coder_bahrom</code> profiliga ulanish uchun parolingizni quyidagicha yuboring:\n"
+            "<code>/iglogin parolingiz</code>\n\n"
+            "Yoki boshqa username bo'lsa:\n"
+            "<code>/iglogin username parolingiz</code>\n\n"
+            "<i>(Xavfsizlik uchun yuborgan parol xabaringiz chatdan darhol avtomatik o'chiriladi)</i>"
+        )
+        return
+
+    if len(parts) == 2:
+        username = "coder_bahrom"
+        password = parts[1].strip()
+    else:
+        username = parts[1].strip().lstrip("@")
+        password = parts[2].strip()
+
+    status_msg = await message.answer(f"⏳ <b>@{escape_html(username)}</b> profiliga ulanilmoqda, kuting...")
+
+    async def _prompt_code(choice: str) -> None:
+        await message.answer(
+            f"📱 <b>Instagram tasdiqlash kodini so'radi ({escape_html(choice)})!</b>\n\n"
+            "Email yoki SMS orqali kelgan <b>6 xonali kodni</b> shu yerga oddiy xabar qilib yuboring:"
+        )
+
+    try:
+        acc = await ig_direct.login_direct(
+            username=username,
+            password=password,
+            on_challenge_prompt=_prompt_code,
+        )
+        failed = await db.list_failed_posts(limit=3)
+        retry_kb = None
+        extra_note = "Endi postlarni Facebook'siz va tokensiz bemalol e'lon qilishingiz mumkin!"
+        if failed:
+            fp = failed[0]
+            extra_note = f"To'xtab qolgan Post #{fp.id} ni hoziroq e'lon qilish uchun quyidagi tugmani bosing:"
+            retry_kb = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text=f"🚀 Post #{fp.id} ni hozir joylash", callback_data=f"ig_retry_{fp.id}")
+            ]])
+        await status_msg.edit_text(
+            f"✅ <b>Instagram'ga muvaffaqiyatli ulandingiz!</b>\n\n"
+            f"👤 Akkaunt: <b>@{escape_html(acc['username'])}</b>\n"
+            f"🆔 ID: <code>{escape_html(acc['id'])}</code>\n"
+            f"🔗 Rejim: <b>To'g'ridan-to'g'ri (Facebook'siz)</b>\n\n"
+            f"{extra_note}",
+            reply_markup=retry_kb,
+        )
+    except Exception as exc:
+        err = escape_html(str(exc)[:200])
+        await status_msg.edit_text(
+            f"❌ <b>Ulanishda xatolik:</b>\n<i>{err}</i>\n\n"
+            "Agar Instagram ilovasida «Bu sizmisiz? (This was me)» degan so'rov chiqqan bo'lsa, "
+            "uni tasdiqlab qayta <code>/iglogin parol</code> yuboring."
+        )
+
+
+@router.message(Command("igsession"))
+async def cmd_igsession(message: Message) -> None:
+    """Direct Instagram login via browser sessionid cookie."""
+    from services import ig_direct
+
+    parts = (message.text or "").strip().split(maxsplit=1)
+    if len(parts) < 2 or not parts[1].strip():
+        await message.answer(
+            "🍪 <b>SessionID orqali ulanish:</b>\n"
+            "<code>/igsession sessionid_qiymati</code>"
+        )
+        return
+
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+    status_msg = await message.answer("⏳ Session tekshirilmoqda...")
+    try:
+        acc = await ig_direct.login_by_sessionid(parts[1].strip())
+        failed = await db.list_failed_posts(limit=3)
+        retry_kb = None
+        if failed:
+            fp = failed[0]
+            retry_kb = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text=f"🚀 Post #{fp.id} ni hozir joylash", callback_data=f"ig_retry_{fp.id}")
+            ]])
+        await status_msg.edit_text(
+            f"✅ <b>Instagram'ga muvaffaqiyatli ulandingiz!</b>\n\n"
+            f"👤 Akkaunt: <b>@{escape_html(acc['username'])}</b>\n"
+            f"🆔 ID: <code>{escape_html(acc['id'])}</code>",
+            reply_markup=retry_kb,
+        )
+    except Exception as exc:
+        await status_msg.edit_text(f"❌ Xatolik: <i>{escape_html(str(exc)[:150])}</i>")
+
+
+@router.message(F.text.regexp(r"^\d{6}$"))
+async def on_verification_code_input(message: Message) -> None:
+    """Capture 6-digit verification code if instagrapi is waiting for challenge resolution."""
+    from services import ig_direct
+
+    if ig_direct.is_waiting_for_code():
+        code = (message.text or "").strip()
+        if ig_direct.submit_verification_code(code):
+            await message.answer("✅ Kod qabul qilindi, Instagram bilan tasdiqlanmoqda...")
+
+
 @router.message(Command("igstatus"))
 async def cmd_igstatus(message: Message) -> None:
     """Display Instagram account info, token status, and insights availability."""
