@@ -89,6 +89,13 @@ async def get_active_token() -> str | None:
             log.error("failed to decrypt stored Instagram token; check TOKEN_ENC_KEY")
             return None
 
+    # Fallback to IG_SESSION_B64 (direct instagrapi session from env) if configured
+    import os
+    if os.getenv("IG_SESSION_B64", "").strip():
+        await save_token("DIRECT_SESSION_ACTIVE", expires_in_sec=365 * 86400)
+        log.info("seeded DIRECT_SESSION_ACTIVE from IG_SESSION_B64 environment")
+        return "DIRECT_SESSION_ACTIVE"
+
     # Fallback to seed token from env var if available
     if seed:
         expires_at = time.time() + (60 * 86400)

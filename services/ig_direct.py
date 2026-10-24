@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
+import os
 import urllib.parse
 from pathlib import Path
 from typing import Any, Callable
@@ -58,21 +60,28 @@ async def save_direct_session(settings: dict[str, Any], username: str = "", user
 
 
 async def load_direct_settings() -> dict[str, Any] | None:
-    """Load and decrypt instagrapi settings from KV store."""
+    """Load and decrypt instagrapi settings from KV store, falling back to IG_SESSION_B64 env var."""
     record = await db.get_kv(KV_DIRECT_SESSION)
-    if not record or not isinstance(record, dict):
-        return None
-    enc = record.get("encrypted_settings")
-    if not enc:
-        return None
-    raw_json = tokens.decrypt_token(enc)
-    if not raw_json:
-        return None
-    try:
-        return json.loads(raw_json)
-    except Exception as exc:
-        log.error("Failed to parse decrypted instagrapi settings: %s", exc)
-        return None
+    if record and isinstance(record, dict) and record.get("encrypted_settings"):
+        raw_json = tokens.decrypt_token(record["encrypted_settings"])
+        if raw_json:
+            try:
+                return json.loads(raw_json)
+            except Exception as exc:
+                log.error("Failed to parse decrypted instagrapi settings: %s", exc)
+
+    env_b64 = os.getenv("IG_SESSION_B64", "").strip()
+    if env_b64:
+        try:
+            decoded = base64.b64decode(env_b64).decode("utf-8")
+            settings = json.loads(decoded)
+            if isinstance(settings, dict):
+                await save_direct_session(settings)
+                log.info("Seeded Instagram direct session from IG_SESSION_B64 environment variable")
+                return settings
+        except Exception as exc:
+            log.error("Failed to decode IG_SESSION_B64: %s", exc)
+    return None
 
 
 def _create_client(settings: dict[str, Any] | None = None):
