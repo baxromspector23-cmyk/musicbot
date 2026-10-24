@@ -153,6 +153,37 @@ async def cmd_stats(message: Message) -> None:
         await message.answer("\n".join(msg_lines), disable_web_page_preview=True)
 
 
+async def _apply_new_ig_token(message: Message, new_token: str) -> None:
+    """Validate and save a new Instagram access token."""
+    client = InstagramClient(token=new_token)
+    try:
+        acc = await client.get_account_info()
+        username = acc.get("username", "Noma'lum")
+        await tokens.save_token(new_token, expires_in_sec=60 * 86400)
+        failed = await db.list_failed_posts(limit=3)
+        retry_kb = None
+        extra_note = "Endi postlarni bemalol rejalashtirishingiz va e'lon qilishingiz mumkin."
+        if failed:
+            fp = failed[0]
+            extra_note = f"To'xtab qolgan Post #{fp.id} ni hoziroq e'lon qilish uchun quyidagi tugmani bosing:"
+            retry_kb = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text=f"🚀 Post #{fp.id} ni hozir joylash", callback_data=f"ig_retry_{fp.id}")
+            ]])
+        await message.answer(
+            f"✅ <b>Instagram token muvaffaqiyatli yangilandi!</b>\n\n"
+            f"👤 Akkaunt: <b>@{username}</b>\n"
+            f"🆔 ID: <code>{acc.get('id', '')}</code>\n\n"
+            f"{extra_note}",
+            reply_markup=retry_kb,
+        )
+    except Exception as exc:
+        err = tokens.redact_token(str(exc))
+        await message.answer(
+            f"❌ <b>Token tekshiruvdan o'tmadi:</b>\n<i>{escape_html(err)}</i>\n\n"
+            "Iltimos, Meta for Developers orqali yangi token oling."
+        )
+
+
 @router.message(Command("igtoken", "settoken"))
 async def cmd_set_token(message: Message) -> None:
     """Update Instagram access token from Telegram."""
@@ -160,29 +191,17 @@ async def cmd_set_token(message: Message) -> None:
     if len(parts) < 2 or not parts[1].strip():
         await message.answer(
             "ℹ️ <b>Instagram tokenni yangilash:</b>\n"
-            "Buyruqdan so'ng tokenni yuboring, masalan:\n"
-            "<code>/igtoken EAABw...</code> yoki <code>/igtoken IGAA...</code>"
+            "Yangi tokenni shunchaki chatga yuboring yoki:\n"
+            "<code>/igtoken IGAA...</code> ko'rinishida yozing."
         )
         return
+    await _apply_new_ig_token(message, parts[1].strip())
 
-    new_token = parts[1].strip()
-    client = InstagramClient(token=new_token)
-    try:
-        acc = await client.get_account_info()
-        username = acc.get("username", "Noma'lum")
-        await tokens.save_token(new_token, expires_in_sec=60 * 86400)
-        await message.answer(
-            f"✅ <b>Instagram token muvaffaqiyatli saqlandi!</b>\n\n"
-            f"👤 Akkaunt: <b>@{username}</b>\n"
-            f"🆔 ID: <code>{acc.get('id', '')}</code>\n"
-            f"Endi postlarni bemalol rejalashtirishingiz va e'lon qilishingiz mumkin."
-        )
-    except Exception as exc:
-        err = tokens.redact_token(str(exc))
-        await message.answer(
-            f"❌ <b>Token tekshiruvdan o'tmadi:</b>\n<i>{escape_html(err)}</i>\n\n"
-            "Iltimos, Meta for Developers orqali tokenni tekshiring."
-        )
+
+@router.message(F.text.regexp(r"^(IGAA|IGQV|EAA)[A-Za-z0-9_-]{40,}$"))
+async def on_raw_token_paste(message: Message) -> None:
+    """Auto-detect pasted Instagram/Meta access token."""
+    await _apply_new_ig_token(message, (message.text or "").strip())
 
 
 @router.message(Command("igstatus"))

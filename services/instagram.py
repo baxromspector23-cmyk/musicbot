@@ -70,8 +70,8 @@ class InstagramClient:
             msg = err.get("message", "Unknown Instagram error")
 
             # Check token errors
-            if code in (190, 102) or subcode in (463, 467, 490):
-                raise InstagramTokenError(f"Instagram token invalid or expired: {msg}")
+            if code in (190, 102) or subcode in (463, 467, 490) or "access blocked" in msg.lower():
+                raise InstagramTokenError(f"Instagram token invalid or blocked: {msg}")
 
             # Check rate / quota limits
             if code in (4, 17, 32, 613) or subcode == 2207042:
