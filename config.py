@@ -40,7 +40,10 @@ except ValueError:
     OWNER_ID = 0
 
 WEBHOOK_URL: str = os.getenv("WEBHOOK_URL", "").strip().rstrip("/")
-RENDER_EXTERNAL_URL: str = os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
+_render_url = os.getenv("RENDER_EXTERNAL_URL", "").strip().rstrip("/")
+if not _render_url and os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip():
+    _render_url = f"https://{os.getenv('RENDER_EXTERNAL_HOSTNAME', '').strip()}"
+RENDER_EXTERNAL_URL: str = _render_url
 PORT: int = _get_int("PORT", 10000)
 TEMP_ROOT: Path = Path(os.getenv("TEMP_ROOT", "/tmp/musicbot"))
 MAX_DOWNLOAD_MB: int = _get_int("MAX_DOWNLOAD_MB", 20)

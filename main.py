@@ -61,26 +61,30 @@ async def keep_awake_loop() -> None:
         return
 
     health_url = f"{target_base}/health"
-    log.info("Keep-awake active: pinging %s every 8 minutes to prevent Render spin-down", health_url)
+    tick_url = f"{target_base}/tick?secret={config.TICK_SECRET}"
+    log.info("Keep-awake active: pinging %s every 5 minutes to prevent Render 15-min spin-down", health_url)
 
     # Initial delay so web server can bind port and start handling requests
-    await asyncio.sleep(45)
+    await asyncio.sleep(30)
 
+    headers = {"User-Agent": "Mozilla/5.0 (compatible; UptimeMonitor/2.0; +https://render.com)"}
     while True:
         try:
             timeout = aiohttp.ClientTimeout(total=20)
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
                 async with session.get(health_url) as resp:
                     if resp.status == 200:
                         log.debug("Keep-awake ping ok: %s -> %d", health_url, resp.status)
                     else:
                         log.warning("Keep-awake ping: %s returned status %d", health_url, resp.status)
+                async with session.get(tick_url) as _:
+                    pass
         except asyncio.CancelledError:
             break
         except Exception as exc:
-            log.warning("Keep-awake ping error: %s (will retry in 8 minutes)", exc)
+            log.warning("Keep-awake ping error: %s (will retry in 5 minutes)", exc)
 
-        await asyncio.sleep(480)  # 8 minutes (Render free sleeps after 15 min idle)
+        await asyncio.sleep(300)  # 5 minutes (Render free sleeps after 15 min idle)
 
 
 def setup_logging() -> None:
