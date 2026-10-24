@@ -209,7 +209,7 @@ REEL_SCHEDULED_CARD = (
     "📝 {preview}"
 )
 
-IG_REMINDER_10MIN = "⏰ <b>Eslatma:</b> Ushbu Reel 10 daqiqadan so'ng Instagram'ga joylanadi!\n\n📝 {preview}"
+IG_REMINDER_10MIN = "⏰ <b>Eslatma:</b> Ushbu Reel 10 daqiqadan so'ng Instagram'ga joylanadi!\n\n📝 <b>Post matni va hashtaglar:</b>\n{preview}"
 IG_PUBLISHING = "Instagram Reels joylanmoqda..."
 IG_PUBLISHED = "Reels Instagram'ga muvaffaqiyatli joylandi! ✅\n🔗 {permalink}"
 IG_PUBLISH_FAILED = "Reels joylashda xatolik yuz berdi ❌\nSabab: {reason}"

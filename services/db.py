@@ -264,6 +264,19 @@ async def list_published_posts(limit: int = 10) -> list[Post]:
         return list(res.scalars().all())
 
 
+async def list_failed_posts(limit: int = 10) -> list[Post]:
+    """Return recently failed posts ordered by id desc."""
+    async with session_scope() as session:
+        stmt = (
+            select(Post)
+            .where(Post.status == "failed")
+            .order_by(Post.id.desc())
+            .limit(limit)
+        )
+        res = await session.execute(stmt)
+        return list(res.scalars().all())
+
+
 async def get_stuck_publishing_posts(now_utc: datetime | None = None) -> list[Post]:
     """Return posts in 'publishing' status whose lock has expired or all publishing posts on startup."""
     async with session_scope() as session:

@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
+import aiohttp
 from aiogram import Bot
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 import config
@@ -233,7 +235,7 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
         await _notify_owner(bot, post.owner_id, texts.IG_QUOTA_EXCEEDED)
         return False
 
-    except (InstagramTransientError, asyncio.TimeoutError) as exc:
+    except (InstagramTransientError, asyncio.TimeoutError, aiohttp.ClientError, TelegramNetworkError) as exc:
         err = redact_token(str(exc))
         attempts = post.attempts + 1
         if attempts <= 3:
@@ -241,8 +243,8 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
             new_time = datetime.now(timezone.utc) + timedelta(minutes=backoff_mins)
             await db.update_post(post_id, status="scheduled", attempts=attempts,
                                  scheduled_at=new_time, error=err)
-            log.warning("post %d transient error (attempt %d/3); retrying in %d min",
-                        post_id, attempts, backoff_mins)
+            log.warning("post %d transient network error (attempt %d/3): %s; retrying in %d min",
+                        post_id, attempts, err, backoff_mins)
         else:
             await db.update_post(post_id, status="failed", attempts=attempts, error=err)
             await _notify_failure_with_buttons(bot, post, f"3 ta urinishdan so'ng xatolik: {err}")
@@ -305,7 +307,11 @@ async def _check_reminders(bot: Bot, now_utc: datetime) -> None:
             p.reminder_sent = True
 
     for p in posts_to_remind:
-        preview = escape_html((p.caption or "")[:60])
+        caption_full = p.caption or ""
+        if len(caption_full) > 400:
+            preview = escape_html(caption_full[:395]) + "..."
+        else:
+            preview = escape_html(caption_full)
         text = texts.IG_REMINDER_10MIN.format(preview=preview)
         kb = InlineKeyboardMarkup(inline_keyboard=[[
             InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"ig_cancel_{p.id}")

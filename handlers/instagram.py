@@ -42,26 +42,49 @@ async def cmd_reel(message: Message, state: FSMContext) -> None:
 async def cmd_queue(message: Message) -> None:
     """List currently scheduled Instagram posts with management buttons."""
     posts = await db.list_scheduled_posts(limit=20)
-    if not posts:
+    failed_posts = await db.list_failed_posts(limit=5)
+
+    if not posts and not failed_posts:
         await message.answer(texts.QUEUE_EMPTY)
         return
 
     tz = ZoneInfo(config.TZ)
-    lines = [texts.QUEUE_TITLE]
-    for p in posts:
-        loc_time = p.scheduled_at.astimezone(tz).strftime("%d.%m %H:%M") if p.scheduled_at else "—"
-        cap = escape_html((p.caption or "")[:40].replace("\n", " "))
-        tag = "⚠️ Vaqti o'tgan" if p.status == "overdue" else f"📅 {loc_time}"
-        lines.append(f"• <b>#{p.id}</b> | {tag} | 📝 {cap}...")
+    lines = []
+    if posts:
+        lines.append(texts.QUEUE_TITLE)
+        for p in posts:
+            loc_time = p.scheduled_at.astimezone(tz).strftime("%d.%m %H:%M") if p.scheduled_at else "—"
+            cap = escape_html((p.caption or "")[:40].replace("\n", " "))
+            tag = "⚠️ Vaqti o'tgan" if p.status == "overdue" else f"📅 {loc_time}"
+            lines.append(f"• <b>#{p.id}</b> | {tag} | 📝 {cap}...")
+
+    if failed_posts:
+        lines.append("\n⚠️ <b>Xatolik tufayli to'xtagan postlar:</b>")
+        for fp in failed_posts:
+            err = escape_html((fp.error or "Noma'lum xatolik")[:50])
+            cap = escape_html((fp.caption or "")[:35].replace("\n", " "))
+            lines.append(f"• <b>#{fp.id}</b> | ❌ <i>{err}</i>\n  📝 {cap}...")
 
     await message.answer("\n".join(lines))
-    # Send management cards for up to 3 upcoming posts
+
+    # Send management cards for up to 3 upcoming scheduled posts
     for p in posts[:3]:
         loc_time = p.scheduled_at.astimezone(tz).strftime("%d.%m %H:%M") if p.scheduled_at else "—"
         status_note = " (⚠️ Vaqti o'tgan)" if p.status == "overdue" else ""
         cap = escape_html((p.caption or "")[:50])
         text = f"Post <b>#{p.id}</b> ({loc_time}){status_note}:\n<i>{cap}</i>"
         await message.answer(text, reply_markup=kb.post_manage_kb(p.id))
+
+    # Send retry cards for failed posts
+    for fp in failed_posts[:2]:
+        cap = escape_html((fp.caption or "")[:50])
+        err = escape_html((fp.error or "")[:60])
+        text = f"⚠️ Post <b>#{fp.id}</b> (Xatolik: {err}):\n<i>{cap}</i>"
+        retry_kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🔄 Qayta urinish", callback_data=f"ig_retry_{fp.id}"),
+            InlineKeyboardButton(text="🗑 O'chirish", callback_data=f"ig_cancel_{fp.id}"),
+        ]])
+        await message.answer(text, reply_markup=retry_kb)
 
 
 @router.message(Command("history"))
@@ -88,7 +111,14 @@ async def cmd_stats(message: Message) -> None:
     """Show insights for recent published posts."""
     posts = await db.list_published_posts(limit=5)
     if not posts:
-        await message.answer(texts.STATS_EMPTY)
+        failed = await db.list_failed_posts(limit=1)
+        scheduled = await db.list_scheduled_posts(limit=1)
+        extra = ""
+        if scheduled:
+            extra += "\n\n📅 Hozirda rejalashtirilgan postlar mavjud: /queue"
+        if failed:
+            extra += "\n\n⚠️ Xatolik tufayli to'xtagan post mavjud: /queue orqali ko'rishingiz va qayta urinishingiz mumkin."
+        await message.answer(texts.STATS_EMPTY + extra)
         return
 
     token = await tokens.get_active_token()
@@ -118,9 +148,41 @@ async def cmd_stats(message: Message) -> None:
             continue
 
     if len(msg_lines) <= 1:
-        await message.answer(texts.STATS_EMPTY)
+        await message.answer("Statistika hozircha tayyor emas (Meta ma'lumotlarni 24 soat ichida hisoblaydi).")
     else:
         await message.answer("\n".join(msg_lines), disable_web_page_preview=True)
+
+
+@router.message(Command("igtoken", "settoken"))
+async def cmd_set_token(message: Message) -> None:
+    """Update Instagram access token from Telegram."""
+    parts = (message.text or "").strip().split(maxsplit=1)
+    if len(parts) < 2 or not parts[1].strip():
+        await message.answer(
+            "ℹ️ <b>Instagram tokenni yangilash:</b>\n"
+            "Buyruqdan so'ng tokenni yuboring, masalan:\n"
+            "<code>/igtoken EAABw...</code> yoki <code>/igtoken IGAA...</code>"
+        )
+        return
+
+    new_token = parts[1].strip()
+    client = InstagramClient(token=new_token)
+    try:
+        acc = await client.get_account_info()
+        username = acc.get("username", "Noma'lum")
+        await tokens.save_token(new_token, expires_in_sec=60 * 86400)
+        await message.answer(
+            f"✅ <b>Instagram token muvaffaqiyatli saqlandi!</b>\n\n"
+            f"👤 Akkaunt: <b>@{username}</b>\n"
+            f"🆔 ID: <code>{acc.get('id', '')}</code>\n"
+            f"Endi postlarni bemalol rejalashtirishingiz va e'lon qilishingiz mumkin."
+        )
+    except Exception as exc:
+        err = tokens.redact_token(str(exc))
+        await message.answer(
+            f"❌ <b>Token tekshiruvdan o'tmadi:</b>\n<i>{escape_html(err)}</i>\n\n"
+            "Iltimos, Meta for Developers orqali tokenni tekshiring."
+        )
 
 
 @router.message(Command("igstatus"))
