@@ -233,15 +233,73 @@ async def upload_reel(video_path: Path, caption: str) -> tuple[str, str]:
     if not settings:
         raise ValueError("Instagram sessiya topilmadi. /iglogin orqali ulaning.")
 
+    thumb_path = video_path.with_suffix(".jpg")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "ffmpeg",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-ss",
+            "0.5",
+            "-i",
+            str(video_path),
+            "-frames:v",
+            "1",
+            "-q:v",
+            "2",
+            str(thumb_path),
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        await asyncio.wait_for(proc.communicate(), timeout=30)
+        if not thumb_path.exists() or thumb_path.stat().st_size == 0:
+            # Fallback to frame at 0.0s
+            proc2 = await asyncio.create_subprocess_exec(
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-i",
+                str(video_path),
+                "-frames:v",
+                "1",
+                "-q:v",
+                "2",
+                str(thumb_path),
+                stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            await asyncio.wait_for(proc2.communicate(), timeout=30)
+    except Exception as exc:
+        log.warning("Thumbnail extraction via ffmpeg failed: %s", exc)
+
     def _sync_upload() -> tuple[dict[str, Any], str, str]:
+        try:
+            import moviepy
+            if not hasattr(moviepy, "VideoFileClip"):
+                from moviepy.editor import VideoFileClip
+                moviepy.VideoFileClip = VideoFileClip  # type: ignore[attr-defined]
+        except Exception:
+            pass
         cl = _create_client(settings)
-        media = cl.clip_upload(path=video_path, caption=caption)
+        kwargs: dict[str, Any] = {"path": video_path, "caption": caption}
+        if thumb_path.exists() and thumb_path.stat().st_size > 0:
+            kwargs["thumbnail"] = thumb_path
+        media = cl.clip_upload(**kwargs)
         media_id = str(media.pk or media.id)
         code = getattr(media, "code", "")
         permalink = f"https://www.instagram.com/reel/{code}/" if code else f"https://www.instagram.com/p/{code}/"
         return cl.get_settings(), media_id, permalink
 
-    new_settings, media_id, permalink = await asyncio.to_thread(_sync_upload)
+    try:
+        new_settings, media_id, permalink = await asyncio.to_thread(_sync_upload)
+    finally:
+        thumb_path.unlink(missing_ok=True)
     record = await db.get_kv(KV_DIRECT_SESSION) or {}
     await save_direct_session(
         new_settings,
