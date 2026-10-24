@@ -23,8 +23,10 @@ class OwnerOnlyMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         user: User | None = data.get("event_from_user")
-        if self.owner_id > 0:
-            if user is None or user.id != self.owner_id:
-                log.debug("ignored update from non-owner user id %s", user.id if user else None)
-                return None
+        if self.owner_id <= 0:
+            log.warning("OWNER_ID is not configured (<= 0); rejecting update")
+            return None
+        if user is None or user.id != self.owner_id:
+            log.debug("ignored update from non-owner user id %s", user.id if user else None)
+            return None
         return await handler(event, data)

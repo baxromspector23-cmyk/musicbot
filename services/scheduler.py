@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -33,6 +34,32 @@ log = logging.getLogger(__name__)
 _SCHEDULER_LOCK = asyncio.Lock()
 _SCHEDULER_TASK: asyncio.Task[None] | None = None
 _LAST_TICK_TS: float = 0.0
+_MEDIA_TOKENS: dict[str, Path] = {}
+
+
+def register_media_token(file_path: Path) -> str:
+    """Create a cryptographically random one-time token for serving a temporary media file."""
+    token = secrets.token_urlsafe(32)
+    _MEDIA_TOKENS[token] = file_path
+    return token
+
+
+def get_media_file(token: str, filename: str) -> Path | None:
+    """Validate token and filename, returning the Path if valid."""
+    if not token or not filename:
+        return None
+    path = _MEDIA_TOKENS.get(token)
+    if path is None or path.name != filename:
+        return None
+    return path
+
+
+def consume_media_token(token: str) -> Path | None:
+    """Remove token from registry and delete the temporary media file."""
+    path = _MEDIA_TOKENS.pop(token, None)
+    if path is not None:
+        path.unlink(missing_ok=True)
+    return path
 
 
 def get_heartbeat_age_sec() -> float:
@@ -148,6 +175,7 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
     reels_temp = config.TEMP_ROOT / "reels"
     reels_temp.mkdir(parents=True, exist_ok=True)
     temp_video = reels_temp / f"reel_{post_id}_{int(time.time())}.mp4"
+    media_token: str | None = None
 
     try:
         await bot.download(post.tg_file_id, destination=temp_video)
@@ -181,14 +209,8 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
             video_url: str | None = None
 
             if config.BASE_URL:
-                video_url = f"{config.BASE_URL.rstrip('/')}/media/{temp_video.name}"
-            elif config.IG_LOGIN_MODE == "instagram" and post.tg_file_id:
-                try:
-                    tg_file = await bot.get_file(post.tg_file_id)
-                    if tg_file.file_path:
-                        video_url = f"https://api.telegram.org/file/bot{config.BOT_TOKEN}/{tg_file.file_path}"
-                except Exception as exc:
-                    log.warning("could not get Telegram file URL: %s", exc)
+                media_token = register_media_token(temp_video)
+                video_url = f"{config.BASE_URL.rstrip('/')}/media/{media_token}/{temp_video.name}"
 
             container_id = await client.create_reel_container(
                 caption=caption,
@@ -198,12 +220,15 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
             )
             await db.update_post(post_id, ig_container_id=container_id)
 
-            # 4. Stream Upload to rupload (only if video_url was not supplied)
+            # 4. Stream Upload to rupload (when BASE_URL is not configured)
             if not video_url:
                 await client.upload_video_resumable(container_id, temp_video)
 
             # 5. Poll Status
             await client.poll_container_status(container_id, timeout=600)
+            if media_token:
+                consume_media_token(media_token)
+                media_token = None
 
             # 6. Publish with ambiguous recovery
             media_id = None
@@ -277,6 +302,8 @@ async def _publish_single_post(bot: Bot, post_id: int) -> bool:
         return False
 
     finally:
+        if media_token:
+            consume_media_token(media_token)
         temp_video.unlink(missing_ok=True)
 
 

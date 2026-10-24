@@ -72,6 +72,10 @@ GET https://graph.facebook.com/v25.0/oauth/access_token?grant_type=fb_exchange_t
 ```
 Olingan tokenni `IG_ACCESS_TOKEN` o'zgaruvchisiga kiriting. Bot token muddati tugashiga 10 kun qolganda uni avtomatik ravishda yangilab boradi!
 
+> [!WARNING]
+> **Norasmiy Direct Login (`instagrapi` / `/iglogin` / `/igsession`) haqida ogohlantirish:**
+> Botda zaxira sifatida qo'shilgan `/iglogin <username> <parol>` va `/igsession <sessionid>` buyruqlari `instagrapi` kutubxonasi orqali mobil ilova so'rovlarini simulyatsiya qiladi. Bu usul **Meta tomonidan rasmiy qo'llab-quvvatlanmaydi** va Instagram xavfsizlik tizimi tomonidan shubhali faollik (challenge, vaqtinchalik cheklov yoki hisob bloklanishi) sifatida baholanishi xavfi mavjud. Doimiy va xavfsiz ishlash uchun har doim **rasmiy Meta Graph API (`IG_ACCESS_TOKEN`)** rejimidan foydalanish qat'iy tavsiya etiladi.
+
 ---
 
 ## 🗄 Ma'lumotlar Bazasi (Database)

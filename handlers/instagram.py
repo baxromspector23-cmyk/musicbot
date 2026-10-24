@@ -219,23 +219,17 @@ async def cmd_iglogin(message: Message) -> None:
         except Exception:
             pass
 
-    if len(parts) < 2:
+    if len(parts) < 3:
         await message.answer(
             "🔐 <b>Instagram'ga to'g'ridan-to'g'ri ulanish (Facebook'siz):</b>\n\n"
-            "<code>@coder_bahrom</code> profiliga ulanish uchun parolingizni quyidagicha yuboring:\n"
-            "<code>/iglogin parolingiz</code>\n\n"
-            "Yoki boshqa username bo'lsa:\n"
+            "Username va parolingizni quyidagicha yuboring:\n"
             "<code>/iglogin username parolingiz</code>\n\n"
             "<i>(Xavfsizlik uchun yuborgan parol xabaringiz chatdan darhol avtomatik o'chiriladi)</i>"
         )
         return
 
-    if len(parts) == 2:
-        username = "coder_bahrom"
-        password = parts[1].strip()
-    else:
-        username = parts[1].strip().lstrip("@")
-        password = parts[2].strip()
+    username = parts[1].strip().lstrip("@")
+    password = parts[2].strip()
 
     status_msg = await message.answer(f"⏳ <b>@{escape_html(username)}</b> profiliga ulanilmoqda, kuting...")
 
@@ -273,7 +267,7 @@ async def cmd_iglogin(message: Message) -> None:
         await status_msg.edit_text(
             f"❌ <b>Ulanishda xatolik:</b>\n<i>{err}</i>\n\n"
             "Agar Instagram ilovasida «Bu sizmisiz? (This was me)» degan so'rov chiqqan bo'lsa, "
-            "uni tasdiqlab qayta <code>/iglogin parol</code> yuboring."
+            "uni tasdiqlab qayta <code>/iglogin username parol</code> yuboring."
         )
 
 
@@ -417,7 +411,7 @@ async def on_video_message(message: Message, state: FSMContext, bot: Bot) -> Non
     temp_file = temp_dir / f"intake_{inc.stem}.{inc.ext}"
 
     try:
-        info = await intake.fetch(bot, inc, temp_file)
+        info = await intake.fetch(bot, inc, temp_file, require_audio=False)
     except UserError as exc:
         temp_file.unlink(missing_ok=True)
         await status.edit_text(escape_html(str(exc)))

@@ -52,9 +52,13 @@ class InstagramClient:
             self.base_url = f"https://{host}/{self.api_version}"
 
         if upload_base_url:
-            self.upload_base_url = upload_base_url.rstrip("/")
+            cleaned = upload_base_url.rstrip("/")
+            ver_suffix = f"/{self.api_version}"
+            if cleaned.endswith(ver_suffix):
+                cleaned = cleaned[: -len(ver_suffix)]
+            self.upload_base_url = cleaned
         else:
-            self.upload_base_url = f"https://rupload.facebook.com/ig-api-upload/{self.api_version}"
+            self.upload_base_url = "https://rupload.facebook.com/ig-api-upload"
 
     def _auth_params(self, params: dict[str, Any] | None = None) -> dict[str, Any]:
         p = dict(params or {})
@@ -169,7 +173,7 @@ class InstagramClient:
     async def upload_video_resumable(self, container_id: str, file_path: Path) -> None:
         """Stream video binary data to rupload.facebook.com with explicit Content-Length."""
         file_size = file_path.stat().st_size
-        upload_url = f"{self.upload_base_url}/{container_id}"
+        upload_url = f"{self.upload_base_url}/{self.api_version}/{container_id}"
 
         headers = {
             "Authorization": f"OAuth {self.token}",

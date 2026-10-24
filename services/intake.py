@@ -80,7 +80,7 @@ def precheck_size(inc: Incoming) -> None:
         raise UserError(texts.FILE_TOO_BIG)
 
 
-async def fetch(bot: Bot, inc: Incoming, dest: Path) -> MediaInfo:
+async def fetch(bot: Bot, inc: Incoming, dest: Path, require_audio: bool = True) -> MediaInfo:
     """Download to dest, probe and validate; raises UserError on any problem."""
     precheck_size(inc)
     if not store.disk_ok():
@@ -97,8 +97,10 @@ async def fetch(bot: Bot, inc: Incoming, dest: Path) -> MediaInfo:
         info = await probe(dest)
     except ProbeError as exc:
         raise UserError(texts.UNSUPPORTED) from exc
-    if not info.has_audio:
+    if require_audio and not info.has_audio:
         raise UserError(texts.NO_AUDIO)
+    if not require_audio and not info.has_audio and not info.has_video:
+        raise UserError(texts.UNSUPPORTED)
     if info.duration <= 0:
         raise UserError(texts.UNSUPPORTED)
     if info.duration > config.MAX_DURATION_MIN * 60:

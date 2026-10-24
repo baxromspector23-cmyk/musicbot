@@ -87,15 +87,20 @@ async def probe(path: Path) -> MediaInfo:
     fmt = data.get("format", {})
     audio = next((s for s in streams if s.get("codec_type") == "audio"), None)
     info = MediaInfo(ext=path.suffix.lower().lstrip("."), size=_to_int(fmt.get("size")))
+    video_stream = None
     for s in streams:
         if s.get("codec_type") == "video":
             if s.get("disposition", {}).get("attached_pic") == 1:
                 info.has_cover = True
             else:
                 info.has_video = True
+                if video_stream is None:
+                    video_stream = s
     if audio is None:
         info.has_audio = False
-        info.duration = _to_float(fmt.get("duration"))
+        info.duration = _to_float(fmt.get("duration")) or (
+            _to_float(video_stream.get("duration")) if video_stream else 0.0
+        )
         return info
     info.codec_name = str(audio.get("codec_name", ""))
     info.sample_rate = _to_int(audio.get("sample_rate")) or 44100

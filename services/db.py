@@ -20,6 +20,7 @@ from sqlalchemy import (
     select,
     update,
 )
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -34,7 +35,7 @@ log = logging.getLogger(__name__)
 
 
 class UTCDateTime(types.TypeDecorator):
-    """DateTime type that always ensures timezone-aware UTC datetime across SQLite and Postgres."""
+    """DateTime type that stores naive UTC in DB and returns timezone-aware UTC across SQLite and Postgres."""
 
     impl = DateTime
     cache_ok = True
@@ -43,10 +44,8 @@ class UTCDateTime(types.TypeDecorator):
         if value is not None:
             if not isinstance(value, datetime):
                 return value
-            if value.tzinfo is None:
-                value = value.replace(tzinfo=timezone.utc)
-            else:
-                value = value.astimezone(timezone.utc)
+            if value.tzinfo is not None:
+                value = value.astimezone(timezone.utc).replace(tzinfo=None)
         return value
 
     def process_result_value(self, value: Any, dialect: Any) -> Any:
@@ -162,15 +161,37 @@ async def get_kv(key: str, default: Any = None) -> Any:
 
 
 async def set_kv(key: str, value: Any) -> None:
-    async with session_scope() as session:
-        stmt = select(KV).where(KV.key == key)
-        res = await session.execute(stmt)
-        item = res.scalar_one_or_none()
-        if item is None:
-            item = KV(key=key, value=value)
-            session.add(item)
-        else:
-            item.value = value
+    """Atomically upsert key-value pair using INSERT ... ON CONFLICT DO UPDATE with IntegrityError retry."""
+    for attempt in range(3):
+        try:
+            async with session_scope() as session:
+                dialect_name = session.bind.dialect.name if session.bind else "sqlite"
+                if dialect_name == "postgresql":
+                    from sqlalchemy.dialects.postgresql import insert as pg_insert
+                    stmt = (
+                        pg_insert(KV)
+                        .values(key=key, value=value)
+                        .on_conflict_do_update(index_elements=[KV.key], set_={"value": value})
+                    )
+                    await session.execute(stmt)
+                elif dialect_name == "sqlite":
+                    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+                    stmt = (
+                        sqlite_insert(KV)
+                        .values(key=key, value=value)
+                        .on_conflict_do_update(index_elements=[KV.key], set_={"value": value})
+                    )
+                    await session.execute(stmt)
+                else:
+                    item = (await session.execute(select(KV).where(KV.key == key))).scalar_one_or_none()
+                    if item is None:
+                        session.add(KV(key=key, value=value))
+                    else:
+                        item.value = value
+            return
+        except IntegrityError:
+            if attempt == 2:
+                raise
 
 
 async def delete_kv(key: str) -> None:

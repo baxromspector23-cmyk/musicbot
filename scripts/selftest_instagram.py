@@ -835,7 +835,7 @@ async def test_mock_instagram_full_flow() -> None:
         # 11. Default URLs and version verification
         def_client = InstagramClient(token="mock_tok", ig_user_id="mock_user")
         assert def_client.api_version == "v25.0"
-        assert def_client.upload_base_url == "https://rupload.facebook.com/ig-api-upload/v25.0"
+        assert def_client.upload_base_url == "https://rupload.facebook.com/ig-api-upload"
         assert "/v25.0" in def_client.base_url
     finally:
         await server.close()
@@ -937,6 +937,102 @@ async def test_daily_token_refresh() -> None:
         await server.close()
 
 
+async def test_security_and_hardening_fixes() -> None:
+    """Test 15: Verify owner_id<=0 rejection, env token fingerprint sync, /media token + auto-delete, and silent video prep."""
+    from middlewares import OwnerOnlyMiddleware
+    from aiogram import Bot, Dispatcher
+    from aiohttp.test_utils import TestClient
+    import main as main_mod
+    from services import probe as probe_mod
+
+    # 1. OwnerOnlyMiddleware with owner_id <= 0 rejects everyone
+    mw_zero = OwnerOnlyMiddleware(0)
+    called = False
+
+    async def dummy_handler(event: Any, data: Any) -> str:
+        nonlocal called
+        called = True
+        return "ok"
+
+    res = await mw_zero(dummy_handler, object(), {"event_from_user": None})  # type: ignore[arg-type]
+    assert res is None and not called
+
+    # 2. Token env_fingerprint sync and refresh preservation
+    orig_env = config.IG_ACCESS_TOKEN
+    try:
+        config.IG_ACCESS_TOKEN = "env_token_v1"
+        await db.delete_kv("ig_token")
+        tok1 = await tokens.get_active_token()
+        assert tok1 == "env_token_v1"
+
+        # Simulate token refresh (changes encrypted token, preserves env_fingerprint)
+        await tokens.save_token("refreshed_token_v1_new", expires_in_sec=60 * 86400)
+        tok_after_refresh = await tokens.get_active_token()
+        assert tok_after_refresh == "refreshed_token_v1_new"
+
+        # Simulate user changing IG_ACCESS_TOKEN in .env -> fingerprint changes -> overwrites DB
+        config.IG_ACCESS_TOKEN = "env_token_v2_updated"
+        tok2 = await tokens.get_active_token()
+        assert tok2 == "env_token_v2_updated"
+    finally:
+        config.IG_ACCESS_TOKEN = orig_env
+
+    # 3. /media/{token}/{filename} random token protection & one-time deletion
+    reels_dir = config.TEMP_ROOT / "reels"
+    reels_dir.mkdir(parents=True, exist_ok=True)
+    test_vid = reels_dir / "test_protected_reel.mp4"
+    test_vid.write_bytes(b"fake_mp4_bytes_12345")
+    media_tok = scheduler.register_media_token(test_vid)
+
+    bot = Bot("123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11")
+    dp = Dispatcher()
+    app = main_mod.create_app(bot, dp)
+    http_client = TestClient(TestServer(app))
+    await http_client.start_server()
+    try:
+        # Without token -> 403
+        r_no_tok = await http_client.get(f"/media/{test_vid.name}")
+        assert r_no_tok.status == 403
+
+        # Wrong token -> 404
+        r_bad_tok = await http_client.get(f"/media/wrongtoken123/{test_vid.name}")
+        assert r_bad_tok.status == 404
+
+        # Valid token -> 200 and deletes file
+        r_ok = await http_client.get(f"/media/{media_tok}/{test_vid.name}")
+        assert r_ok.status == 200
+        body = await r_ok.read()
+        assert body == b"fake_mp4_bytes_12345"
+        assert not test_vid.exists()
+
+        # Second fetch with same token -> 404
+        r_second = await http_client.get(f"/media/{media_tok}/{test_vid.name}")
+        assert r_second.status == 404
+    finally:
+        await http_client.close()
+        await bot.session.close()
+
+    # 4. Silent video intake & prepare_reel_video adds silent audio
+    silent_raw = TMP / "silent_input.mp4"
+    silent_out = TMP / "silent_prepared.mp4"
+    proc = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
+        "-f", "lavfi", "-i", "color=c=green:s=720x1280:r=30:d=4",
+        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(silent_raw),
+    )
+    await proc.communicate()
+    p_info = await probe_mod.probe(silent_raw)
+    assert p_info.has_video is True
+    assert p_info.has_audio is False
+    assert p_info.duration >= 3.5
+
+    info2, specs2 = await video_prep.check_video_specs(silent_raw)
+    await video_prep.prepare_reel_video(silent_raw, silent_out, info2, specs2, aspect_mode="original")
+    out_info = await probe_mod.probe(silent_out)
+    assert out_info.has_video is True
+    assert out_info.has_audio is True
+
+
 # ----------------------------------------------------------------------
 # Runner
 # ----------------------------------------------------------------------
@@ -960,6 +1056,7 @@ async def main_async() -> int:
         ("12. Mock Instagram API end-to-end pipeline", test_mock_instagram_full_flow),
         ("13. Crashed 'publishing' post recovery", test_crashed_publishing_recovery),
         ("14. Daily token health check and auto-refresh", test_daily_token_refresh),
+        ("15. Security & hardening fixes verification", test_security_and_hardening_fixes),
     ]
 
     for name, fn in tests:

@@ -203,14 +203,39 @@ async def tick(request: web.Request) -> web.Response:
 
 
 async def serve_media(request: web.Request) -> web.Response:
-    """Serve temporary prepared Reel video to Meta crawler during publishing."""
+    """Serve temporary prepared Reel video to Meta crawler protected by a random token, then delete."""
+    token = request.match_info.get("token") or request.query.get("token", "")
     filename = request.match_info.get("filename", "")
-    if "/" in filename or "\\" in filename or ".." in filename or not filename.endswith(".mp4"):
+    if (
+        not token
+        or "/" in filename
+        or "\\" in filename
+        or ".." in filename
+        or not filename.endswith(".mp4")
+    ):
         return web.Response(status=403, text="forbidden")
-    file_path = config.TEMP_ROOT / "reels" / filename
-    if not file_path.exists():
+
+    file_path = scheduler.get_media_file(token, filename)
+    if file_path is None or not file_path.exists():
         return web.Response(status=404, text="not found")
-    return web.FileResponse(file_path)
+
+    if request.method == "HEAD":
+        return web.Response(
+            status=200,
+            headers={
+                "Content-Type": "video/mp4",
+                "Content-Length": str(file_path.stat().st_size),
+            },
+        )
+
+    data = file_path.read_bytes()
+    # Delete file and revoke token once Meta fetches the full video
+    scheduler.consume_media_token(token)
+    return web.Response(
+        body=data,
+        content_type="video/mp4",
+        headers={"Content-Length": str(len(data))},
+    )
 
 
 def create_app(bot: Bot, dp: Dispatcher) -> web.Application:
@@ -220,6 +245,7 @@ def create_app(bot: Bot, dp: Dispatcher) -> web.Application:
     app.router.add_get("/health", health)
     app.router.add_get("/tick", tick)
     app.router.add_post("/tick", tick)
+    app.router.add_get("/media/{token}/{filename}", serve_media)
     app.router.add_get("/media/{filename}", serve_media)
 
     # handle_in_background=True (aiogram default, verified): the update is processed in a

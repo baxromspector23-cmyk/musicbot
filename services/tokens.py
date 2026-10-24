@@ -1,6 +1,7 @@
 """Instagram Access Token storage, Fernet encryption, and automatic refresh."""
 from __future__ import annotations
 
+import hashlib
 import logging
 import re
 import time
@@ -58,9 +59,29 @@ def redact_token(text: str) -> str:
     return s
 
 
+def token_fingerprint(token: str) -> str:
+    """Compute SHA-256 hex digest of a token string."""
+    return hashlib.sha256(token.strip().encode("utf-8")).hexdigest()
+
+
 async def get_active_token() -> str | None:
-    """Retrieve and decrypt the active Instagram Access Token from the DB or seed env var."""
+    """Retrieve and decrypt the active Instagram Access Token from the DB or seed env var.
+
+    If the SHA-256 fingerprint of config.IG_ACCESS_TOKEN differs from the env_fingerprint
+    stored in the DB, the new env token is saved and returned.
+    """
+    seed = (config.IG_ACCESS_TOKEN or "").strip()
+    seed_fp = token_fingerprint(seed) if seed else ""
     item = await db.get_kv("ig_token", None)
+
+    if seed and item is not None and isinstance(item, dict):
+        stored_fp = item.get("env_fingerprint")
+        if stored_fp != seed_fp:
+            expires_at = time.time() + (60 * 86400)
+            await save_token(seed, expires_at=expires_at, env_fingerprint=seed_fp)
+            log.info("updated Instagram token in DB because env token fingerprint changed")
+            return seed
+
     if item is not None and isinstance(item, dict) and "encrypted_token" in item:
         try:
             return decrypt_token(item["encrypted_token"])
@@ -69,28 +90,41 @@ async def get_active_token() -> str | None:
             return None
 
     # Fallback to seed token from env var if available
-    seed = config.IG_ACCESS_TOKEN
     if seed:
-        # Standard long-lived tokens last 60 days
         expires_at = time.time() + (60 * 86400)
-        await save_token(seed, expires_at=expires_at)
+        await save_token(seed, expires_at=expires_at, env_fingerprint=seed_fp)
         log.info("seeded initial Instagram token from environment")
         return seed
 
     return None
 
 
-async def save_token(plain_token: str, expires_in_sec: float | None = None, expires_at: float | None = None) -> None:
-    """Encrypt and persist the token with its expiration timestamp in the DB."""
+async def save_token(
+    plain_token: str,
+    expires_in_sec: float | None = None,
+    expires_at: float | None = None,
+    env_fingerprint: str | None = None,
+) -> None:
+    """Encrypt and persist the token with its expiration timestamp and env_fingerprint in the DB."""
     if expires_at is None:
         duration = expires_in_sec if expires_in_sec is not None else (60 * 86400)
         expires_at = time.time() + duration
+
+    if env_fingerprint is None:
+        existing = await db.get_kv("ig_token", None)
+        if isinstance(existing, dict) and existing.get("env_fingerprint"):
+            env_fingerprint = str(existing["env_fingerprint"])
+        elif config.IG_ACCESS_TOKEN:
+            env_fingerprint = token_fingerprint(config.IG_ACCESS_TOKEN)
+        else:
+            env_fingerprint = ""
 
     cipher = encrypt_token(plain_token)
     data = {
         "encrypted_token": cipher,
         "expires_at": expires_at,
         "updated_at": time.time(),
+        "env_fingerprint": env_fingerprint,
     }
     await db.set_kv("ig_token", data)
 
