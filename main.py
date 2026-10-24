@@ -85,6 +85,11 @@ async def keep_awake_loop() -> None:
 
 def setup_logging() -> None:
     """Log to stdout only."""
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     logging.basicConfig(
         stream=sys.stdout,
         level=getattr(logging, config.LOG_LEVEL, logging.INFO),

@@ -82,6 +82,13 @@ def _create_client(settings: dict[str, Any] | None = None):
     cl.delay_range = [1, 3]
     if settings:
         cl.set_settings(settings)
+    # Bypass broken IGUSDIDRegistrationMutation on graphql_www which returns field_exception
+    try:
+        if not getattr(cl, "usdid_private_key", None):
+            cl.usdid_generate()
+        cl.usdid_registered = True
+    except Exception:
+        pass
     return cl
 
 
@@ -132,25 +139,36 @@ async def login_direct(
     def _sync_login() -> tuple[dict[str, Any], str, str]:
         cl = _create_client(existing_settings)
         cl.challenge_code_handler = _challenge_code_handler
+        cl.username = username
+        cl.password = password
+
+        outcome = cl.bloks_caa_login(
+            username=username,
+            password=password,
+            verification_code=verification_code,
+        )
+        logged = bool(outcome.get("logged_in"))
+        if not logged:
+            raw_text = cl._bloks_all_text(outcome.get("result", {}))
+            if "Incorrect password" in raw_text or "login_wrong_password" in raw_text:
+                raise ValueError("Instagram paroli noto'g'ri! Iltimos, parolni tekshirib qayta urinib ko'ring.")
+            if "user_not_found" in raw_text.lower() or "account_not_found" in raw_text.lower():
+                raise ValueError(f"@{username} nomli Instagram akkaunt topilmadi.")
+            context = cl._extract_two_step_verification_context(outcome)
+            if context:
+                if not verification_code:
+                    code = _challenge_code_handler(username, "2FA / Authenticator")
+                else:
+                    code = verification_code
+                logged = cl._login_with_bloks_two_factor(code, outcome, RuntimeError("2FA required"))
+            if not logged:
+                reason = str(outcome.get("reason") or "Instagram login rad etildi (ilovada tasdiqlang)")
+                raise ValueError(reason)
+
         try:
-            if hasattr(cl, "login_legacy"):
-                if verification_code:
-                    cl.login_legacy(username, password, verification_code=verification_code)
-                else:
-                    cl.login_legacy(username, password)
-            else:
-                if verification_code:
-                    cl.login(username, password, verification_code=verification_code)
-                else:
-                    cl.login(username, password)
-        except Exception as first_exc:
-            if "field_exception" in str(first_exc) and hasattr(cl, "login_legacy"):
-                if verification_code:
-                    cl.login_legacy(username, password, verification_code=verification_code)
-                else:
-                    cl.login_legacy(username, password)
-            else:
-                raise
+            cl.login_flow()
+        except Exception as exc:
+            log.debug("post-login flow warning: %s", exc)
 
         try:
             info = cl.account_info()
