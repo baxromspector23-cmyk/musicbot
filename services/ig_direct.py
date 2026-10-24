@@ -132,12 +132,35 @@ async def login_direct(
     def _sync_login() -> tuple[dict[str, Any], str, str]:
         cl = _create_client(existing_settings)
         cl.challenge_code_handler = _challenge_code_handler
-        if verification_code:
-            cl.login(username, password, verification_code=verification_code)
-        else:
-            cl.login(username, password)
-        info = cl.account_info()
-        return cl.get_settings(), info.username, str(info.pk)
+        try:
+            if hasattr(cl, "login_legacy"):
+                if verification_code:
+                    cl.login_legacy(username, password, verification_code=verification_code)
+                else:
+                    cl.login_legacy(username, password)
+            else:
+                if verification_code:
+                    cl.login(username, password, verification_code=verification_code)
+                else:
+                    cl.login(username, password)
+        except Exception as first_exc:
+            if "field_exception" in str(first_exc) and hasattr(cl, "login_legacy"):
+                if verification_code:
+                    cl.login_legacy(username, password, verification_code=verification_code)
+                else:
+                    cl.login_legacy(username, password)
+            else:
+                raise
+
+        try:
+            info = cl.account_info()
+            uname = info.username or username
+            uid = str(info.pk or cl.user_id or "")
+        except Exception:
+            uname = str(cl.username or username)
+            uid = str(cl.user_id or "")
+
+        return cl.get_settings(), uname, uid
 
     try:
         settings, uname, uid = await asyncio.to_thread(_sync_login)
