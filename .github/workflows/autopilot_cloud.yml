@@ -1,0 +1,50 @@
+name: Cloud Autopilot Reels (4x Daily Rek)
+
+on:
+  schedule:
+    # 09:00 Asia/Tashkent (04:00 UTC) - Ertalabki Rek #1
+    - cron: "0 4 * * *"
+    # 11:30 Asia/Tashkent (06:30 UTC) - Ertalabki Rek #2
+    - cron: "30 6 * * *"
+    # 18:30 Asia/Tashkent (13:30 UTC) - Kechki Rek #1
+    - cron: "30 13 * * *"
+    # 20:30 Asia/Tashkent (15:30 UTC) - Kechki Rek #2
+    - cron: "30 15 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode: publish or check-only"
+        required: false
+        default: "publish"
+
+jobs:
+  autopilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install FFmpeg and Python dependencies
+        run: |
+          sudo apt-get update -y && sudo apt-get install -y ffmpeg
+          pip install -r requirements.txt
+
+      - name: Run Cloud Autopilot
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          OWNER_ID: ${{ secrets.OWNER_ID }}
+          IG_DIRECT_SESSION_B64: ${{ secrets.IG_DIRECT_SESSION_B64 }}
+          TZ: "Asia/Tashkent"
+        run: |
+          if [ "${{ github.event.inputs.mode }}" = "check-only" ]; then
+            python -m scripts.cloud_autopilot_run --check-only
+          else
+            python -m scripts.cloud_autopilot_run
+          fi
