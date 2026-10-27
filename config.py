@@ -94,7 +94,8 @@ IMAGE_EXT = frozenset({"jpg", "jpeg", "png", "webp", "bmp"})
 # Instagram Reels Auto-Poster Configuration
 # ======================================================================
 
-DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./data.db").strip()
+_DEFAULT_DB_FILE = (Path(__file__).resolve().parent / "data.db").as_posix()
+DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{_DEFAULT_DB_FILE}").strip()
 # Normalize postgres URL scheme if provided as postgres:// or postgresql://
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)

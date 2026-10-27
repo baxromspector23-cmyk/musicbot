@@ -236,8 +236,9 @@ async def get_account_info() -> dict[str, str]:
         raise
 
 
-async def upload_reel(video_path: Path, caption: str) -> tuple[str, str]:
+async def upload_reel(video_path: Path | str, caption: str) -> tuple[str, str]:
     """Upload a video file as an Instagram Reel and return (media_id, permalink)."""
+    video_path = Path(video_path)
     settings = await load_direct_settings()
     if not settings:
         raise ValueError("Instagram sessiya topilmadi. /iglogin orqali ulaning.")
