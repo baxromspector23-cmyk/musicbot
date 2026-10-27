@@ -195,21 +195,53 @@ async def health(_: web.Request) -> web.Response:
 
 async def tick(request: web.Request) -> web.Response:
     """External tick endpoint (e.g. cron-job.org / wakeup for Render free sleeping)."""
-    secret = request.query.get("secret")
-    if not secret and request.can_read_body:
+    secret = request.query.get("secret") or request.headers.get("X-Tick-Secret")
+    json_payload = None
+    if request.can_read_body:
         try:
-            data = await request.post()
-            secret = data.get("secret")
+            if "application/json" in (request.content_type or ""):
+                json_payload = await request.json()
+                if not secret and isinstance(json_payload, dict):
+                    secret = json_payload.get("secret")
+            else:
+                data = await request.post()
+                if not secret:
+                    secret = data.get("secret")
         except Exception:
             pass
 
     if not config.TICK_SECRET or secret != config.TICK_SECRET:
         return web.Response(status=401, text="unauthorized")
 
+    if isinstance(json_payload, dict):
+        if "sync_ig_session" in json_payload and isinstance(json_payload["sync_ig_session"], dict):
+            await db.set_kv("ig_direct_session", json_payload["sync_ig_session"])
+        if "sync_post" in json_payload and isinstance(json_payload["sync_post"], dict):
+            from datetime import datetime
+            sp = json_payload["sync_post"]
+            sched_dt = datetime.fromisoformat(sp["scheduled_at"]) if sp.get("scheduled_at") else None
+            await db.create_post(
+                owner_id=int(sp.get("owner_id") or config.OWNER_ID),
+                tg_file_id=sp.get("tg_file_id"),
+                file_unique_id=sp.get("file_unique_id"),
+                duration=float(sp.get("duration") or 24.0),
+                width=int(sp.get("width") or 1080),
+                height=int(sp.get("height") or 1920),
+                caption=sp.get("caption"),
+                hashtags=sp.get("hashtags") or [],
+                scheduled_at=sched_dt,
+                status=sp.get("status") or "scheduled",
+            )
+
     bot: Bot = request.app["bot"]
     published_count = await scheduler.process_due_posts(bot)
     await scheduler.check_daily_token_refresh(bot)
-    return web.json_response({"ok": True, "published": published_count})
+    scheduled_list = await db.list_scheduled_posts(limit=50)
+    return web.json_response({
+        "ok": True,
+        "published": published_count,
+        "scheduled_count": len(scheduled_list),
+    })
 
 
 async def serve_media(request: web.Request) -> web.Response:
