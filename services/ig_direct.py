@@ -296,7 +296,15 @@ async def upload_reel(video_path: Path, caption: str) -> tuple[str, str]:
         except Exception:
             pass
         cl = _create_client(settings)
-        kwargs: dict[str, Any] = {"path": video_path, "caption": caption}
+        kwargs: dict[str, Any] = {
+            "path": video_path,
+            "caption": caption,
+            "extra_data": {
+                "clips_share_preview_to_feed": "1",
+                "third_party_downloads_enabled": "1",
+                "enable_smart_tracking": "1",
+            },
+        }
         if thumb_path.exists() and thumb_path.stat().st_size > 0:
             kwargs["thumbnail"] = thumb_path
         media = cl.clip_upload(**kwargs)
@@ -375,3 +383,114 @@ async def check_recent_media_published(caption_prefix: str) -> tuple[str, str] |
     except Exception as exc:
         log.debug("Direct check_recent_media_published failed: %s", exc)
         return None
+
+
+async def optimize_profile_for_rek(niche_hint: str = "") -> dict[str, Any]:
+    """Analyze current Instagram account and optimize Name, Bio, and Public visibility for Reels SEO/Explore."""
+    import aiohttp
+    import config
+
+    settings = await load_direct_settings()
+    if not settings:
+        raise ValueError("Instagram sessiya topilmadi. Avval /iglogin username parol orqali ulaning.")
+
+    def _fetch_current() -> dict[str, Any]:
+        cl = _create_client(settings)
+        raw = cl.private_request("accounts/current_user/?edit=true")
+        return raw.get("user", {})
+
+    user_data = await asyncio.to_thread(_fetch_current)
+    username = user_data.get("username") or ""
+    old_name = user_data.get("full_name") or ""
+    old_bio = user_data.get("biography") or ""
+    was_private = bool(user_data.get("is_private"))
+
+    topic = niche_hint.strip() or "Dasturlash, Web Dizayn, UI/UX va IT texnologiyalar"
+    new_name = "Bahrom | Dasturchi • IT & Web"
+    new_bio = (
+        "💻 Dasturlash | Web Dizayn | IT Texnologiyalar\n"
+        "🚀 Foydali kodlar, UI/UX animatsiyalar va IT sirlari\n"
+        "👇 Har kuni yangi Reels — obuna bo'ling!"
+    )
+
+    if config.GEMINI_API_KEY:
+        prompt = (
+            f"Instagram profil: @{username}\n"
+            f"Avvalgi ism: {old_name}\n"
+            f"Avvalgi bio: {old_bio}\n"
+            f"Yo'nalish (Niche): {topic}\n\n"
+            "Vazifa: Instagram qidiruv (SEO) va Reels algoritmi (Explore/Rek) uchun profilni optimallashtir.\n"
+            "1. 'full_name': Maksimal 30 ta belgi! Ism va eng muhim 2-3 ta qidiruv kalit so'zi bo'lsin "
+            "(masalan: 'Bahrom | Dasturchi • IT & Web'). Maxsus o'qilmaydigan unicode shriftlar ishlatma.\n"
+            "2. 'biography': Maksimal 145 ta belgi, 3 qatorli aniq, chiroyli emojilar bilan, "
+            "1-qator: asosiy kalit so'zlar, 2-qator: obunachiga qanday foyda berishi, 3-qator: obuna bo'lishga chaqiriq (CTA).\n"
+            "3. 'tips': Algoritm uchun 3 ta qisqa tavsiya ro'yxati.\n"
+            "Faqat JSON qaytar: {\"full_name\": \"...\", \"biography\": \"...\", \"tips\": [\"...\"]}"
+        )
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"temperature": 0.5, "response_mime_type": "application/json"},
+        }
+        headers = {"x-goog-api-key": config.GEMINI_API_KEY, "Content-Type": "application/json"}
+        try:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=25)) as s:
+                for m in ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-pro-latest"):
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent"
+                    async with s.post(url, json=payload, headers=headers) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            text = (
+                                data.get("candidates", [{}])[0]
+                                .get("content", {})
+                                .get("parts", [{}])[0]
+                                .get("text", "")
+                            )
+                            parsed = json.loads(text)
+                            cand_name = str(parsed.get("full_name") or "").strip()[:30]
+                            cand_bio = str(parsed.get("biography") or "").strip()[:150]
+                            if cand_name:
+                                new_name = cand_name
+                            if cand_bio:
+                                new_bio = cand_bio
+                            break
+        except Exception as exc:
+            log.warning("Gemini profile SEO generation fallback: %s", exc)
+
+    def _apply_changes() -> dict[str, Any]:
+        cl = _create_client(settings)
+        if was_private:
+            try:
+                cl.account_set_public()
+            except Exception:
+                pass
+        cl.account_set_biography(new_bio)
+        edit_payload = {
+            "external_url": user_data.get("external_url") or "",
+            "username": username,
+            "first_name": new_name,
+            "biography": new_bio,
+            "email": user_data.get("email") or "",
+            "phone_number": user_data.get("phone_number") or "",
+            "gender": str(user_data.get("gender", 1)),
+        }
+        res = cl.private_request("accounts/edit_profile/", cl.with_default_data(edit_payload))
+        upd = res.get("user", {})
+        return {
+            "settings": cl.get_settings(),
+            "username": upd.get("username") or username,
+            "user_id": str(upd.get("pk") or user_data.get("pk") or ""),
+            "old_name": old_name,
+            "new_name": upd.get("full_name") or new_name,
+            "old_bio": old_bio,
+            "new_bio": upd.get("biography") or new_bio,
+            "was_private": was_private,
+            "category": user_data.get("category") or "Creator",
+        }
+
+    result = await asyncio.to_thread(_apply_changes)
+    await save_direct_session(
+        result["settings"],
+        username=result["username"],
+        user_id=result["user_id"],
+    )
+    return result

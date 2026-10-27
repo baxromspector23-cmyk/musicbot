@@ -367,6 +367,32 @@ async def cmd_igstatus(message: Message) -> None:
     await message.answer(text)
 
 
+@router.message(Command("rek", "igoptimize"))
+async def cmd_rek_optimize(message: Message) -> None:
+    """AI-optimize Instagram profile (Name, Bio, Public visibility) for Reels recommendations (Explore/SEO)."""
+    from services import ig_direct
+
+    parts = (message.text or "").strip().split(maxsplit=1)
+    niche_hint = parts[1].strip() if len(parts) > 1 else ""
+    status_msg = await message.answer("🤖 <b>AI Instagram profilingizni tahlil qilib, Rek (SEO) uchun moslashtirmoqda...</b>")
+
+    try:
+        res = await ig_direct.optimize_profile_for_rek(niche_hint=niche_hint)
+        await status_msg.edit_text(
+            f"✅ <b>Instagram profilingiz Rek (Explore & SEO) uchun moslashtirildi!</b>\n\n"
+            f"👤 <b>Profil:</b> @{escape_html(res['username'])}\n"
+            f"🏷 <b>Avvalgi ism:</b> <s>{escape_html(res['old_name'])}</s>\n"
+            f"✨ <b>Yangi SEO ism:</b> <code>{escape_html(res['new_name'])}</code>\n\n"
+            f"📝 <b>Yangi SEO Bio:</b>\n<pre>{escape_html(res['new_bio'])}</pre>\n\n"
+            f"🔓 <b>Ochiqlik holati:</b> Ommaviy (Public) ✅\n"
+            f"🎬 <b>Reels sozlamalari:</b> Profil setkasida ko'rsatish, ulashish (Share/Download) va Smart Tracking yoqildi ✅"
+        )
+    except Exception as exc:
+        await status_msg.edit_text(
+            f"❌ <b>Profilni moslashtirishda xatolik:</b>\n<i>{escape_html(str(exc)[:200])}</i>"
+        )
+
+
 # ----------------------------------------------------------------------
 # Entry via Main Menu ("Instagramga joylash")
 # ----------------------------------------------------------------------

@@ -153,6 +153,7 @@ async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
         BotCommand(command="history", description="Postlar tarixi"),
         BotCommand(command="stats", description="24 soatlik statistika"),
         BotCommand(command="igstatus", description="Instagram ulanish holati"),
+        BotCommand(command="rek", description="AI orqali Instagram profilni Rek uchun moslash"),
         BotCommand(command="iglogin", description="Instagram'ga ulanish (Facebook'siz)"),
         BotCommand(command="igtoken", description="Instagram tokenni yangilash"),
         BotCommand(command="cancel", description="Bekor qilish"),
