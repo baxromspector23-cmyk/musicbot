@@ -411,9 +411,9 @@ async def optimize_profile_for_rek(niche_hint: str = "") -> dict[str, Any]:
     )
     new_name = "Bahrom | Sayt va Bot Yaratish"
     new_bio = (
-        "💼 Biznesingiz uchun Zamonaviy Sayt va Telegram Botlar\n"
+        "💼 Biznes uchun Zamonaviy Sayt va Telegram Bot\n"
         "🏪 Restoran, Kompaniya va Do'konlar savdosini oshiramiz\n"
-        "📩 Zakaz va bepul maslahat uchun Direct'ga yozing 👇"
+        "📩 Zakaz berish uchun: Direct (DM) 👇"
     )
 
     if config.GEMINI_API_KEY:
@@ -451,7 +451,7 @@ async def optimize_profile_for_rek(niche_hint: str = "") -> dict[str, Any]:
                             )
                             parsed = json.loads(text)
                             cand_name = str(parsed.get("full_name") or "").strip()[:30]
-                            cand_bio = str(parsed.get("biography") or "").strip()[:150]
+                            cand_bio = str(parsed.get("biography") or "").strip()[:145]
                             if cand_name:
                                 new_name = cand_name
                             if cand_bio:
