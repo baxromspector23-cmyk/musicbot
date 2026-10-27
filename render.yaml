@@ -36,7 +36,7 @@ services:
       - key: CAPTION_LANG
         value: "uz"
       - key: DEFAULT_HASHTAGS
-        value: "dasturlash,coding,python,programmer,ituzbekistan"
+        value: "saytyaratish,biznesuz,tadbirkor,telegrambot,restoranuz"
       - key: HASHTAG_LIMIT
         value: "5"
       - key: TZ

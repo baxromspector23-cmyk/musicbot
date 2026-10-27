@@ -405,12 +405,15 @@ async def optimize_profile_for_rek(niche_hint: str = "") -> dict[str, Any]:
     old_bio = user_data.get("biography") or ""
     was_private = bool(user_data.get("is_private"))
 
-    topic = niche_hint.strip() or "Dasturlash, Web Dizayn, UI/UX va IT texnologiyalar"
-    new_name = "Bahrom | Dasturchi • IT & Web"
+    topic = (
+        niche_hint.strip()
+        or "Kompaniya, restoran, do'kon va tadbirkorlar uchun zamonaviy Veb-Sayt, Online Menyu va Telegram Bot yaratish xizmati (mijoz va zakaz olish)"
+    )
+    new_name = "Bahrom | Sayt va Bot Yaratish"
     new_bio = (
-        "💻 Dasturlash | Web Dizayn | IT Texnologiyalar\n"
-        "🚀 Foydali kodlar, UI/UX animatsiyalar va IT sirlari\n"
-        "👇 Har kuni yangi Reels — obuna bo'ling!"
+        "💼 Biznesingiz uchun Zamonaviy Sayt va Telegram Botlar\n"
+        "🏪 Restoran, Kompaniya va Do'konlar savdosini oshiramiz\n"
+        "📩 Zakaz va bepul maslahat uchun Direct'ga yozing 👇"
     )
 
     if config.GEMINI_API_KEY:
@@ -418,14 +421,15 @@ async def optimize_profile_for_rek(niche_hint: str = "") -> dict[str, Any]:
             f"Instagram profil: @{username}\n"
             f"Avvalgi ism: {old_name}\n"
             f"Avvalgi bio: {old_bio}\n"
-            f"Yo'nalish (Niche): {topic}\n\n"
-            "Vazifa: Instagram qidiruv (SEO) va Reels algoritmi (Explore/Rek) uchun profilni optimallashtir.\n"
-            "1. 'full_name': Maksimal 30 ta belgi! Ism va eng muhim 2-3 ta qidiruv kalit so'zi bo'lsin "
-            "(masalan: 'Bahrom | Dasturchi • IT & Web'). Maxsus o'qilmaydigan unicode shriftlar ishlatma.\n"
-            "2. 'biography': Maksimal 145 ta belgi, 3 qatorli aniq, chiroyli emojilar bilan, "
-            "1-qator: asosiy kalit so'zlar, 2-qator: obunachiga qanday foyda berishi, 3-qator: obuna bo'lishga chaqiriq (CTA).\n"
-            "3. 'tips': Algoritm uchun 3 ta qisqa tavsiya ro'yxati.\n"
-            "Faqat JSON qaytar: {\"full_name\": \"...\", \"biography\": \"...\", \"tips\": [\"...\"]}"
+            f"Asosiy maqsad va yo'nalish: {topic}\n\n"
+            "Vazifa: Instagram qidiruv (SEO) va Reels algoritmi orqali BIZNES EGALARI (restoran, kompaniya, do'kon rahbarlari)dan ZAKAZ (buyurtma) olish uchun profilni optimallashtir.\n"
+            "1. 'full_name': Maksimal 30 ta belgi! Mijozlar qidiradigan eng asosiy xizmat nomi bo'lsin "
+            "(masalan: 'Bahrom | Sayt va Bot Yaratish'). Maxsus o'qilmaydigan unicode shriftlar ishlatma.\n"
+            "2. 'biography': Maksimal 145 ta belgi, 3 qatorli aniq, ishonch uyg'otuvchi:\n"
+            "   1-qator: Bizneslar uchun qanday xizmat (Sayt, Online Menyu, Telegram Bot),\n"
+            "   2-qator: Restoran, kompaniya va do'konlarga qanday foyda berishi (savdo va mijozlarni oshirish),\n"
+            "   3-qator: Zakaz berish uchun Direct (DM) ga yozishga aniq chaqiriq (CTA).\n"
+            "Faqat JSON qaytar: {\"full_name\": \"...\", \"biography\": \"...\"}"
         )
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],

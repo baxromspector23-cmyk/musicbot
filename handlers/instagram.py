@@ -628,7 +628,7 @@ async def on_desc_auto(cb: CallbackQuery, state: FSMContext, bot: Bot) -> None:
 
     status = await cb.message.answer(texts.REEL_AI_WORKING)
     ai_res = await llm.generate_caption(
-        description="Dasturlash va IT haqida video",
+        description="Kompaniya, restoran va bizneslar uchun zamonaviy veb-sayt va Telegram bot yaratish xizmati (zakaz olish uchun)",
         audio_tags=audio_tags,
         frames=frames,
     )
@@ -642,7 +642,7 @@ async def on_desc_auto(cb: CallbackQuery, state: FSMContext, bot: Bot) -> None:
     full_text = ai_res["full_text"]
 
     await db.update_post(post_id, caption=full_text, hashtags=hashtags)
-    await state.update_data(last_desc="Dasturlash va IT haqida video")
+    await state.update_data(last_desc="Kompaniya, restoran va bizneslar uchun zamonaviy veb-sayt va Telegram bot yaratish xizmati")
 
     preview_text = texts.REEL_PREVIEW_CARD.format(
         caption=escape_html(caption),
@@ -665,7 +665,7 @@ async def on_description_entered(message: Message, state: FSMContext, bot: Bot) 
 
     desc_text = message.text or ""
     if desc_text.strip().lower() in ("avto", "auto", "o'tkazish", "otkazish", "-", "."):
-        desc_text = "Dasturlash va IT haqida video"
+        desc_text = "Kompaniya, restoran va bizneslar uchun zamonaviy veb-sayt va Telegram bot yaratish xizmati (zakaz olish uchun)"
     import base64
     frames = [base64.b64decode(b) for b in data.get("frames_b64", [])]
     audio_tags = {"title": data.get("title", ""), "artist": data.get("artist", "")}

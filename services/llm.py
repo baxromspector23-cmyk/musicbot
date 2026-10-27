@@ -19,17 +19,18 @@ BANNED_TAGS = frozenset({
     "follow4follow", "viral", "explorepage", "fyp", "rek", "rekomendatsii",
 })
 
-SYSTEM_PROMPT = """You are an expert social media editor writing Instagram Reels captions.
+SYSTEM_PROMPT = """You are an expert B2B marketing & lead-generation copywriter writing Instagram Reels captions for a Web Developer & IT Agency in Uzbekistan.
+The PRIMARY GOAL of every Reel is to attract BUSINESS OWNERS (restaurant owners, shop owners, company directors, entrepreneurs) and convert them into paying clients who order a Website, Online Menu, CRM, or Telegram Bot.
 Follow these strict rules:
-1. Language: {lang}. Write naturally in the requested language.
-2. Hook: The very first line MUST be an engaging hook under 120 characters (Instagram truncates preview after 125 characters).
+1. Language: {lang}. Write naturally and persuasively in the requested language.
+2. Hook: The very first line MUST be a business-focused hook under 120 characters (e.g., how a modern website/bot increases a restaurant's or company's customers, sales, and prestige).
 3. Length: 2 to 4 short lines total (easy to read on mobile).
-4. Keywords: Naturally weave 2-3 specific search keywords into the caption text describing what happens in the video.
-5. Call to Action: Include one soft call to action at the end (e.g., save, share, comment).
+4. Value Proposition: Show business owners WHY their restaurant, shop, or company needs a website or Telegram bot like the one in the video (24/7 online orders, modern brand image, convenience for clients).
+5. Call to Action (Lead Gen): Always end with a clear, direct Call to Action inviting business owners to place an order (e.g., "Biznesingiz yoki restoraningiz uchun shunday zamonaviy sayt/bot kerakmi? Direct (DM) ga «ZAKAZ» deb yozing!").
 6. Body clean: DO NOT put any hashtags inside the body text.
-7. Emojis: Use at most 3 relevant emojis total.
-8. No spam: No false claims, no engagement-bait spam (e.g., 'comment 5 times to win'), no copyright lyrics.
-9. Tech & Programming: If the video or description touches on programming, coding, IT, web development, Python, algorithms, software engineering, tech tutorials, or code editors, adapt the caption tone to be engaging for developers and tech enthusiasts, and prioritize top programming hashtags (e.g. #dasturlash, #coding, #programmer, #python, #ituzbekistan, #developer).
+7. Emojis: Use at most 3 relevant business/tech emojis total.
+8. No spam: No false claims, no engagement-bait spam, no copyright lyrics.
+9. Client-Targeted Hashtags: Choose hashtags that business owners, entrepreneurs, restaurant owners, and clients in Uzbekistan search and follow (e.g. #saytyaratish, #biznesuz, #tadbirkor, #restoranuz, #telegrambot, #vebsayt, #marketinguz, #toshkent) combined with programming/web design relevance (#dasturlash, #webdesign).
 10. Format: You MUST return a single valid JSON object with EXACTLY two keys:
    "caption": "The body text without hashtags",
    "hashtags": ["tag1", "tag2", "tag3", "tag4", "tag5"]
@@ -171,9 +172,15 @@ def build_fallback_caption(
     desc = description.strip()
     clean_desc, desc_tags = extract_caption_body_and_tags(desc)
     if not clean_desc or clean_desc.lower() == "avto":
-        body = "Yangi video lavha! Ko'ring, baho bering va saqlab qo'ying 🎬"
+        body = (
+            "Biznesingiz yoki restoraningiz uchun mijozlarni jalb qiluvchi zamonaviy veb-sayt va Telegram bot! 🚀\n\n"
+            "Buyurtma berish va bepul maslahat olish uchun Direct (DM) ga «ZAKAZ» deb yozing 📩"
+        )
     else:
-        body = f"{clean_desc}\n\nFikringizni izohlarda qoldiring va do'stlaringizga ulashing ✨"
+        body = (
+            f"{clean_desc}\n\n"
+            "Biznesingiz uchun shunday zamonaviy sayt yoki Telegram bot kerakmi? Direct (DM) ga yozing! 📩"
+        )
 
     hashtags = validate_and_format_hashtags(desc_tags, brand_tag, default_tags or config.DEFAULT_HASHTAGS, limit)
     full_text = f"{body}\n\n{' '.join('#' + t for t in hashtags)}".strip()
