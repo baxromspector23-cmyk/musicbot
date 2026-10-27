@@ -146,16 +146,16 @@ async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
 
     await bot.set_my_commands([
         BotCommand(command="start", description="Boshlash"),
-        BotCommand(command="help", description="Yordam"),
-        BotCommand(command="new", description="Yangi fayl"),
+        BotCommand(command="autopilot", description="Kuniga 4 ta avto-video (09:00, 11:30, 18:30, 20:30)"),
+        BotCommand(command="stats", description="Jonli Instagram statistika"),
         BotCommand(command="reel", description="Instagram Reel rejalashtirish"),
         BotCommand(command="queue", description="Rejalashtirilgan postlar"),
         BotCommand(command="history", description="Postlar tarixi"),
-        BotCommand(command="stats", description="24 soatlik statistika"),
         BotCommand(command="igstatus", description="Instagram ulanish holati"),
         BotCommand(command="rek", description="AI orqali Instagram profilni Rek uchun moslash"),
         BotCommand(command="iglogin", description="Instagram'ga ulanish (Facebook'siz)"),
-        BotCommand(command="igtoken", description="Instagram tokenni yangilash"),
+        BotCommand(command="new", description="Yangi fayl"),
+        BotCommand(command="help", description="Yordam"),
         BotCommand(command="cancel", description="Bekor qilish"),
     ])
 
@@ -236,6 +236,8 @@ async def tick(request: web.Request) -> web.Response:
     bot: Bot = request.app["bot"]
     published_count = await scheduler.process_due_posts(bot)
     await scheduler.check_daily_token_refresh(bot)
+    from services import autopilot
+    asyncio.create_task(autopilot.maybe_run_autopilot_tick(bot))
     scheduled_list = await db.list_scheduled_posts(limit=50)
     return web.json_response({
         "ok": True,

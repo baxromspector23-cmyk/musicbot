@@ -106,25 +106,71 @@ async def cmd_history(message: Message) -> None:
     await message.answer("\n".join(lines), disable_web_page_preview=True)
 
 
-@router.message(Command("stats"))
-async def cmd_stats(message: Message) -> None:
-    """Show insights for recent published posts."""
+async def _build_stats_report() -> tuple[str, InlineKeyboardMarkup]:
+    """Build real-time Instagram profile, Reels views/likes/comments, and Autopilot status report."""
+    from services import autopilot, ig_direct
+
+    tz = ZoneInfo(config.TZ)
+    scheduled = await db.list_scheduled_posts(limit=20)
+    ap_on = await autopilot.is_autopilot_enabled()
+    ap_badge = "🟢 Yoqilgan (09:00, 11:30, 18:30, 20:30)" if ap_on else "🔴 O'chirilgan"
+
+    stats_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🔄 Yangilash", callback_data="ig_stats_refresh"),
+            InlineKeyboardButton(text="🤖 Avtopilot (4x/kun)", callback_data="ig_autopilot_menu"),
+        ],
+    ])
+
+    if await ig_direct.has_direct_session():
+        try:
+            st = await ig_direct.get_live_profile_stats(limit=8)
+            lines = [
+                "📊 <b>Instagram Jonli Statistika (Real-Time)</b>\n",
+                f"👤 <b>Profil:</b> <a href='https://www.instagram.com/{escape_html(st['username'])}/'>@{escape_html(st['username'])}</a> ({escape_html(st['full_name'])})",
+                f"👥 <b>Obunachilar:</b> <code>{st['followers']:,}</code> | <b>Obunalar:</b> <code>{st['following']:,}</code> | <b>Postlar:</b> <code>{st['media_count']}</code>",
+                "",
+                "📈 <b>Umumiy Reels Ko'rsatkichlari:</b>",
+                f"👁 Jami ko'rishlar: <b>{st['total_views']:,}</b> (o'rtacha: <code>{st['avg_views']:,}</code> / video)",
+                f"❤️ Jami layklar: <b>{st['total_likes']:,}</b> | 💬 Izohlar: <b>{st['total_comments']:,}</b>",
+                "",
+                "🎬 <b>Oxirgi joylangan Reels videolar:</b>",
+            ]
+            if st["items"]:
+                for idx, item in enumerate(st["items"], 1):
+                    dt_str = ""
+                    if item.get("taken_at"):
+                        try:
+                            dt_str = item["taken_at"].astimezone(tz).strftime("%d.%m %H:%M") + " | "
+                        except Exception:
+                            pass
+                    title = escape_html(item["title"])
+                    link = escape_html(item["permalink"])
+                    lines.append(
+                        f"{idx}. {dt_str}<a href='{link}'>{title}</a>\n"
+                        f"   👁 <b>{item['views']:,}</b> ko'rish | ❤️ <b>{item['likes']:,}</b> | 💬 <b>{item['comments']:,}</b>"
+                    )
+            else:
+                lines.append("<i>Hozircha videolar yo'q.</i>")
+
+            lines.extend([
+                "",
+                f"🤖 <b>Avtopilot (Kuniga 4 ta Rek):</b> {ap_badge}",
+                f"📅 <b>Navbatdagi rejalashtirilgan videolar:</b> <code>{len(scheduled)} ta</code> (/queue)",
+            ])
+            return "\n".join(lines), stats_kb
+        except Exception as exc:
+            log.warning("Live direct stats error: %s", exc)
+
+    # Fallback to Graph API or DB posts if Direct Session is not active
     posts = await db.list_published_posts(limit=5)
     if not posts:
-        failed = await db.list_failed_posts(limit=1)
-        scheduled = await db.list_scheduled_posts(limit=1)
-        extra = ""
-        if scheduled:
-            extra += "\n\n📅 Hozirda rejalashtirilgan postlar mavjud: /queue"
-        if failed:
-            extra += "\n\n⚠️ Xatolik tufayli to'xtagan post mavjud: /queue orqali ko'rishingiz va qayta urinishingiz mumkin."
-        await message.answer(texts.STATS_EMPTY + extra)
-        return
+        extra = f"\n\n🤖 <b>Avtopilot:</b> {ap_badge}\n📅 <b>Navbatda:</b> {len(scheduled)} ta post (/queue)"
+        return texts.STATS_EMPTY + extra, stats_kb
 
     token = await tokens.get_active_token()
     if not token:
-        await message.answer(texts.IG_TOKEN_EXPIRED)
-        return
+        return texts.IG_TOKEN_EXPIRED, stats_kb
 
     client = InstagramClient(token=token)
     msg_lines = [texts.STATS_TITLE]
@@ -148,9 +194,27 @@ async def cmd_stats(message: Message) -> None:
             continue
 
     if len(msg_lines) <= 1:
-        await message.answer("Statistika hozircha tayyor emas (Meta ma'lumotlarni 24 soat ichida hisoblaydi).")
-    else:
-        await message.answer("\n".join(msg_lines), disable_web_page_preview=True)
+        return "Statistika hozircha tayyor emas (Meta ma'lumotlarni 24 soat ichida hisoblaydi).", stats_kb
+    return "\n".join(msg_lines), stats_kb
+
+
+@router.message(Command("stats"))
+async def cmd_stats(message: Message) -> None:
+    """Show live profile & Reels insights for @coder_bahrom."""
+    wait_msg = await message.answer("⏳ <b>Instagram'dan jonli statistika olinmoqda...</b>")
+    report_text, markup = await _build_stats_report()
+    await wait_msg.edit_text(report_text, reply_markup=markup, disable_web_page_preview=True)
+
+
+@router.callback_query(F.data == "ig_stats_refresh")
+async def on_stats_refresh(cb: CallbackQuery) -> None:
+    """Refresh live Instagram stats inline."""
+    await cb.answer("🔄 Jonli ma'lumotlar yangilanmoqda...")
+    report_text, markup = await _build_stats_report()
+    try:
+        await cb.message.edit_text(report_text, reply_markup=markup, disable_web_page_preview=True)
+    except Exception:
+        pass
 
 
 async def _apply_new_ig_token(message: Message, new_token: str) -> None:
@@ -322,10 +386,31 @@ async def on_verification_code_input(message: Message) -> None:
 
 @router.message(Command("igstatus"))
 async def cmd_igstatus(message: Message) -> None:
-    """Display Instagram account info, token status, and insights availability."""
+    """Display Instagram account info, token/session status, and insights availability."""
+    from services import autopilot, ig_direct
+
+    queue = await db.list_scheduled_posts(limit=100)
+    ap_on = await autopilot.is_autopilot_enabled()
+
+    if await ig_direct.has_direct_session():
+        try:
+            st = await ig_direct.get_live_profile_stats(limit=3)
+            ap_str = "🟢 Yoqilgan (09:00, 11:30, 18:30, 20:30)" if ap_on else "🔴 O'chirilgan"
+            await message.answer(
+                f"📸 <b>Instagram Holati (To'g'ridan-to'g'ri rejim):</b>\n\n"
+                f"👤 <b>Akkaunt:</b> @{escape_html(st['username'])} ({escape_html(st['full_name'])})\n"
+                f"👥 <b>Obunachilar:</b> <code>{st['followers']:,}</code> | <b>Postlar:</b> <code>{st['media_count']}</code>\n"
+                f"🔑 <b>Ulanish:</b> Faol (Facebook'siz Direct Session ✅)\n"
+                f"🤖 <b>Avtopilot (4x/kun):</b> {ap_str}\n"
+                f"📋 <b>Navbatdagi postlar:</b> <code>{len(queue)} ta</code> (/queue)\n"
+                f"📊 <b>Jonli statistika:</b> /stats"
+            )
+            return
+        except Exception as exc:
+            log.warning("igstatus direct check fallback: %s", exc)
+
     token = await tokens.get_active_token()
     tok_info = await tokens.get_token_status()
-    queue = await db.list_scheduled_posts(limit=100)
 
     username = "Noma'lum"
     user_id = config.IG_USER_ID or "o'rnatilmagan"
@@ -350,7 +435,6 @@ async def cmd_igstatus(message: Message) -> None:
         except Exception:
             insights_status = "mavjud emas"
 
-    # Check last published or failed post
     last_pub = await db.list_published_posts(limit=1)
     if last_pub:
         last_res = f"Post #{last_pub[0].id} joylandi"
@@ -365,6 +449,97 @@ async def cmd_igstatus(message: Message) -> None:
         last_result=escape_html(last_res),
     )
     await message.answer(text)
+
+
+async def _build_autopilot_card() -> tuple[str, InlineKeyboardMarkup]:
+    from services import autopilot
+
+    enabled = await autopilot.is_autopilot_enabled()
+    queue = await db.list_scheduled_posts(limit=20)
+    tz = ZoneInfo(config.TZ)
+
+    status_str = "🟢 <b>YOQILGAN (Faol)</b>" if enabled else "🔴 <b>O'CHIRILGAN</b>"
+    toggle_btn_text = "🔴 Avtopilotni o'chirish" if enabled else "🟢 Avtopilotni yoqish"
+
+    lines = [
+        "🤖 <b>Avtomatik Video Topish va Joylash (Avtopilot 4x/kun)</b>\n",
+        f"⚙️ <b>Holati:</b> {status_str}",
+        "📅 <b>Kunlik «Rek» chiqish vaqtlari (Asia/Tashkent):</b>",
+        "  • 🌅 <b>09:00</b> — Ertalabki Rek #1 (Restoran & Onlayn Menyu)",
+        "  • ☀️ <b>11:30</b> — Ertalabki Rek #2 (Kompaniya & Veb-Sayt)",
+        "  • 🌆 <b>18:30</b> — Kechki Rek #1 (Internet-Do'kon & Katalog)",
+        "  • 🌙 <b>20:30</b> — Kechki Rek #2 (Telegram Bot & Avtomatlashtirish)\n",
+        f"📋 <b>Hozir navbatda tayyor turgan videolar:</b> <code>{len(queue)} ta</code>",
+    ]
+    for p in queue[:4]:
+        loc_t = p.scheduled_at.astimezone(tz).strftime("%d.%m %H:%M") if p.scheduled_at else "—"
+        cap_short = escape_html((p.caption or "").splitlines()[0][:38])
+        lines.append(f"  ▫️ <b>#{p.id}</b> | <code>{loc_t}</code> — <i>{cap_short}</i>")
+
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⚡ Hozir 4 ta Rek vaqtini videoga to'ldirish", callback_data="ap_fill_4")],
+        [
+            InlineKeyboardButton(text=toggle_btn_text, callback_data="ap_toggle"),
+            InlineKeyboardButton(text="📊 Jonli Statistika", callback_data="ig_stats_refresh"),
+        ],
+    ])
+    return "\n".join(lines), markup
+
+
+@router.message(Command("autopilot", "auto"))
+async def cmd_autopilot(message: Message) -> None:
+    """Manage 4x/day automatic video finder and Rek scheduler."""
+    text, markup = await _build_autopilot_card()
+    await message.answer(text, reply_markup=markup)
+
+
+@router.callback_query(F.data == "ig_autopilot_menu")
+async def on_autopilot_menu(cb: CallbackQuery) -> None:
+    await cb.answer()
+    text, markup = await _build_autopilot_card()
+    try:
+        await cb.message.edit_text(text, reply_markup=markup)
+    except Exception:
+        await cb.message.answer(text, reply_markup=markup)
+
+
+@router.callback_query(F.data == "ap_toggle")
+async def on_autopilot_toggle(cb: CallbackQuery) -> None:
+    from services import autopilot
+
+    curr = await autopilot.is_autopilot_enabled()
+    await autopilot.set_autopilot_enabled(not curr)
+    await cb.answer("Avtopilot yoqildi! ✅" if not curr else "Avtopilot o'chirildi! ⏸")
+    text, markup = await _build_autopilot_card()
+    try:
+        await cb.message.edit_text(text, reply_markup=markup)
+    except Exception:
+        pass
+
+
+@router.callback_query(F.data == "ap_fill_4")
+async def on_autopilot_fill_4(cb: CallbackQuery, bot: Bot) -> None:
+    from services import autopilot
+
+    await cb.answer("🔍 Videolar qidirilmoqda va tayyorlanmoqda...")
+    status_msg = await cb.message.answer(
+        "🤖 <b>Avtopilot ishga tushdi:</b>\n"
+        "Ertalabki (09:00, 11:30) va kechki (18:30, 20:30) Rek vaqtlari uchun "
+        "yangi videolar topilib, 9:16 formatda tayyorlanmoqda (1-2 daqiqa)..."
+    )
+    created = await autopilot.ensure_daily_autopilot_posts(bot, notify_owner=False)
+    try:
+        await status_msg.delete()
+    except Exception:
+        pass
+
+    text, markup = await _build_autopilot_card()
+    note = (
+        f"✅ <b>{len(created)} ta yangi video topildi va Rek vaqtlariga rejalashtirildi!</b>\n\n"
+        if created
+        else "✅ <b>Barcha 4 ta Rek vaqti allaqachon videolar bilan to'ldirilgan!</b>\n\n"
+    )
+    await cb.message.answer(note + text, reply_markup=markup)
 
 
 @router.message(Command("rek", "igoptimize"))

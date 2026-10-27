@@ -498,3 +498,68 @@ async def optimize_profile_for_rek(niche_hint: str = "") -> dict[str, Any]:
         user_id=result["user_id"],
     )
     return result
+
+
+async def get_live_profile_stats(limit: int = 10) -> dict[str, Any]:
+    """Fetch real-time profile info and recent Reels/posts metrics directly from Instagram."""
+    settings = await load_direct_settings()
+    if not settings:
+        raise RuntimeError("Instagram akkaunt ulanmagan. Avval /iglogin username parol yuboring.")
+
+    def _fetch() -> dict[str, Any]:
+        cl = _create_client(settings)
+        uid = str(cl.user_id or "")
+        if not uid:
+            info = cl.account_info()
+            uid = str(info.pk)
+        uinfo = cl.user_info_v1(uid)
+        medias = cl.user_medias_v1(uid, amount=limit)
+
+        items: list[dict[str, Any]] = []
+        total_views = 0
+        total_likes = 0
+        total_comments = 0
+
+        for m in medias:
+            views = max(int(getattr(m, "play_count", 0) or 0), int(getattr(m, "view_count", 0) or 0))
+            likes = int(getattr(m, "like_count", 0) or 0)
+            comments = int(getattr(m, "comment_count", 0) or 0)
+            total_views += views
+            total_likes += likes
+            total_comments += comments
+
+            code = str(getattr(m, "code", "") or "")
+            caption_raw = str(getattr(m, "caption_text", "") or "").strip()
+            first_line = caption_raw.splitlines()[0].strip() if caption_raw else "Reel video"
+            taken_at = getattr(m, "taken_at", None)
+
+            items.append({
+                "pk": str(getattr(m, "pk", "")),
+                "code": code,
+                "permalink": f"https://www.instagram.com/reel/{code}/" if code else "",
+                "views": views,
+                "likes": likes,
+                "comments": comments,
+                "title": first_line[:45],
+                "taken_at": taken_at,
+            })
+
+        count = len(items)
+        avg_views = round(total_views / count) if count > 0 else 0
+        return {
+            "username": str(uinfo.username or ""),
+            "full_name": str(uinfo.full_name or ""),
+            "biography": str(uinfo.biography or ""),
+            "followers": int(uinfo.follower_count or 0),
+            "following": int(uinfo.following_count or 0),
+            "media_count": int(uinfo.media_count or count),
+            "is_private": bool(uinfo.is_private),
+            "total_views": total_views,
+            "total_likes": total_likes,
+            "total_comments": total_comments,
+            "avg_views": avg_views,
+            "items": items,
+        }
+
+    return await asyncio.to_thread(_fetch)
+

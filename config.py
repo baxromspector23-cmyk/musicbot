@@ -137,9 +137,14 @@ DEFAULT_HASHTAGS: list[str] = [
 HASHTAG_LIMIT: int = _get_int("HASHTAG_LIMIT", 5)
 
 TZ: str = os.getenv("TZ", "Asia/Tashkent").strip()
-MAX_POSTS_PER_DAY: int = _get_int("MAX_POSTS_PER_DAY", 2)
-MIN_GAP_HOURS: int = _get_int("MIN_GAP_HOURS", 4)
+MAX_POSTS_PER_DAY: int = _get_int("MAX_POSTS_PER_DAY", 4)
+MIN_GAP_HOURS: int = _get_int("MIN_GAP_HOURS", 2)
 QUIET_HOURS: str = os.getenv("QUIET_HOURS", "0-7").strip()
+AUTOPILOT_SLOTS: list[str] = [
+    s.strip()
+    for s in os.getenv("AUTOPILOT_SLOTS", "09:00,11:30,18:30,20:30").split(",")
+    if s.strip()
+]
 
 _storage_chat_raw = os.getenv("STORAGE_CHAT_ID", "").strip()
 STORAGE_CHAT_ID: int | None = None

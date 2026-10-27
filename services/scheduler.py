@@ -587,6 +587,8 @@ async def _scheduler_loop(bot: Bot) -> None:
     while True:
         try:
             await process_due_posts(bot)
+            from services import autopilot
+            await autopilot.maybe_run_autopilot_tick(bot)
         except Exception as exc:
             log.exception("unexpected error in scheduler loop: %s", redact_token(str(exc)))
         await asyncio.sleep(config.SCHEDULER_INTERVAL_SEC)
