@@ -96,9 +96,13 @@ async def main() -> None:
     vid_info = await autopilot.find_and_download_b2b_video(slot_idx)
     norm_path = vid_info["path"]
     try:
-        full_caption = f"{spec['caption']}\n\n{' '.join('#' + t for t in spec['hashtags'])}"
+        caption_text = vid_info.get("caption") or spec.get("caption", "")
+        full_caption = f"{caption_text}\n\n{' '.join('#' + t for t in spec['hashtags'])}"
         media_id, permalink = await ig_direct.upload_reel(norm_path, full_caption)
         log.info("Successfully published Cloud Autopilot Reel: %s", permalink)
+
+        # Ensure code is persisted
+        await autopilot._mark_code_used(vid_info["code"])
 
         bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
         try:
