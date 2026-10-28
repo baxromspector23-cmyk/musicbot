@@ -34,7 +34,7 @@ jobs:
           cache: "pip"
 
       - name: Setup FFmpeg
-        uses: federico-terzi/ffmpeg-action@v2
+        uses: federicocarboni/setup-ffmpeg@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
