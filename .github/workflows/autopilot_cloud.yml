@@ -33,8 +33,10 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Verify FFmpeg (Pre-installed)
-        run: ffmpeg -version
+      - name: Setup FFmpeg
+        uses: federico-terzi/ffmpeg-action@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Python dependencies
         run: |
