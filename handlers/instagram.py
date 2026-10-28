@@ -113,88 +113,88 @@ async def _build_stats_report() -> tuple[str, InlineKeyboardMarkup]:
     tz = ZoneInfo(config.TZ)
     scheduled = await db.list_scheduled_posts(limit=20)
     ap_on = await autopilot.is_autopilot_enabled()
-    ap_badge = "🟢 Yoqilgan (09:00, 11:30, 18:30, 20:30)" if ap_on else "🔴 O'chirilgan"
+    ap_badge = "🟢 Yoqilgan (09:00, 11:00, 12:00, 18:30, 20:30)" if ap_on else "🔴 O'chirilgan"
 
     stats_kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="🔄 Yangilash", callback_data="ig_stats_refresh"),
-            InlineKeyboardButton(text="🤖 Avtopilot (4x/kun)", callback_data="ig_autopilot_menu"),
+            InlineKeyboardButton(text="🤖 Avtopilot (5x/kun)", callback_data="ig_autopilot_menu"),
         ],
     ])
 
+    st = None
+    is_cached = False
     if await ig_direct.has_direct_session():
         try:
-            st = await ig_direct.get_live_profile_stats(limit=8)
-            lines = [
-                "📊 <b>Instagram Jonli Statistika (Real-Time)</b>\n",
-                f"👤 <b>Profil:</b> <a href='https://www.instagram.com/{escape_html(st['username'])}/'>@{escape_html(st['username'])}</a> ({escape_html(st['full_name'])})",
-                f"👥 <b>Obunachilar:</b> <code>{st['followers']:,}</code> | <b>Obunalar:</b> <code>{st['following']:,}</code> | <b>Postlar:</b> <code>{st['media_count']}</code>",
-                "",
-                "📈 <b>Umumiy Reels Ko'rsatkichlari:</b>",
-                f"👁 Jami ko'rishlar: <b>{st['total_views']:,}</b> (o'rtacha: <code>{st['avg_views']:,}</code> / video)",
-                f"❤️ Jami layklar: <b>{st['total_likes']:,}</b> | 💬 Izohlar: <b>{st['total_comments']:,}</b>",
-                "",
-                "🎬 <b>Oxirgi joylangan Reels videolar:</b>",
-            ]
-            if st["items"]:
-                for idx, item in enumerate(st["items"], 1):
-                    dt_str = ""
-                    if item.get("taken_at"):
-                        try:
-                            dt_str = item["taken_at"].astimezone(tz).strftime("%d.%m %H:%M") + " | "
-                        except Exception:
-                            pass
-                    title = escape_html(item["title"])
-                    link = escape_html(item["permalink"])
-                    lines.append(
-                        f"{idx}. {dt_str}<a href='{link}'>{title}</a>\n"
-                        f"   👁 <b>{item['views']:,}</b> ko'rish | ❤️ <b>{item['likes']:,}</b> | 💬 <b>{item['comments']:,}</b>"
-                    )
-            else:
-                lines.append("<i>Hozircha videolar yo'q.</i>")
-
-            lines.extend([
-                "",
-                f"🤖 <b>Avtopilot (Kuniga 4 ta Rek):</b> {ap_badge}",
-                f"📅 <b>Navbatdagi rejalashtirilgan videolar:</b> <code>{len(scheduled)} ta</code> (/queue)",
-            ])
-            return "\n".join(lines), stats_kb
+            st = await asyncio.wait_for(ig_direct.get_live_profile_stats(limit=8), timeout=15.0)
         except Exception as exc:
-            log.warning("Live direct stats error: %s", exc)
+            log.warning("Live direct stats error: %s, falling back to cached stats", exc)
+            cached_data = await db.get_kv("ig_cached_profile_stats")
+            if cached_data and isinstance(cached_data, dict):
+                st = cached_data
+                is_cached = True
 
-    # Fallback to Graph API or DB posts if Direct Session is not active
-    posts = await db.list_published_posts(limit=5)
+    if st:
+        header_tag = "📊 <b>Instagram Jonli Statistika (Real-Time)</b>\n" if not is_cached else "📊 <b>Instagram Statistikasi</b> <i>(Oxirgi ma'lumotlar)</i>\n"
+        lines = [
+            header_tag,
+            f"👤 <b>Profil:</b> <a href='https://www.instagram.com/{escape_html(st.get('username', 'coder_bahrom'))}/'>@{escape_html(st.get('username', 'coder_bahrom'))}</a> ({escape_html(st.get('full_name', ''))})",
+            f"👥 <b>Obunachilar:</b> <code>{st.get('followers', 0):,}</code> | <b>Obunalar:</b> <code>{st.get('following', 0):,}</code> | <b>Postlar:</b> <code>{st.get('media_count', 0)}</code>",
+            "",
+            "📈 <b>Umumiy Reels Ko'rsatkichlari:</b>",
+            f"👁 Jami ko'rishlar: <b>{st.get('total_views', 0):,}</b> (o'rtacha: <code>{st.get('avg_views', 0):,}</code> / video)",
+            f"❤️ Jami layklar: <b>{st.get('total_likes', 0):,}</b> | 💬 Izohlar: <b>{st.get('total_comments', 0):,}</b>",
+            "",
+            "🎬 <b>Oxirgi joylangan Reels videolar:</b>",
+        ]
+        items = st.get("items", [])
+        if items:
+            for idx, item in enumerate(items, 1):
+                dt_str = ""
+                taken_at = item.get("taken_at")
+                if taken_at:
+                    try:
+                        if isinstance(taken_at, str):
+                            parsed_dt = datetime.fromisoformat(taken_at)
+                            dt_str = parsed_dt.astimezone(tz).strftime("%d.%m %H:%M") + " | "
+                        elif hasattr(taken_at, "astimezone"):
+                            dt_str = taken_at.astimezone(tz).strftime("%d.%m %H:%M") + " | "
+                    except Exception:
+                        pass
+                title = escape_html(item.get("title", "Reel video"))
+                link = escape_html(item.get("permalink", ""))
+                lines.append(
+                    f"{idx}. {dt_str}<a href='{link}'>{title}</a>\n"
+                    f"   👁 <b>{item.get('views', 0):,}</b> ko'rish | ❤️ <b>{item.get('likes', 0):,}</b> | 💬 <b>{item.get('comments', 0):,}</b>"
+                )
+        else:
+            lines.append("<i>Hozircha videolar yo'q.</i>")
+
+        lines.extend([
+            "",
+            f"🤖 <b>Avtopilot (Kuniga 5 ta Rek):</b> {ap_badge}",
+            f"📅 <b>Navbatdagi rejalashtirilgan videolar:</b> <code>{len(scheduled)} ta</code> (/queue)",
+        ])
+        return "\n".join(lines), stats_kb
+
+    # Fallback to DB published posts
+    posts = await db.list_published_posts(limit=8)
     if not posts:
         extra = f"\n\n🤖 <b>Avtopilot:</b> {ap_badge}\n📅 <b>Navbatda:</b> {len(scheduled)} ta post (/queue)"
         return texts.STATS_EMPTY + extra, stats_kb
 
-    token = await tokens.get_active_token()
-    if not token:
-        return texts.IG_TOKEN_EXPIRED, stats_kb
+    msg_lines = [
+        "📊 <b>Instagram Joylangan Videolar Ro'yxati:</b>\n",
+        f"🤖 <b>Avtopilot (Kuniga 5 ta):</b> {ap_badge}",
+        f"📅 <b>Navbatdagi videolar:</b> <code>{len(scheduled)} ta</code> (/queue)\n",
+        "🎬 <b>E'lon qilingan Reels videolar:</b>",
+    ]
+    for idx, p in enumerate(posts, 1):
+        loc_time = p.published_at.astimezone(tz).strftime("%d.%m %H:%M") if p.published_at else "—"
+        cap = escape_html((p.caption or "")[:40].replace("\n", " "))
+        link = escape_html(p.permalink or "—")
+        msg_lines.append(f"{idx}. {loc_time} | <a href='{link}'>{cap}</a>")
 
-    client = InstagramClient(token=token)
-    msg_lines = [texts.STATS_TITLE]
-
-    for p in posts:
-        if not p.ig_media_id:
-            continue
-        try:
-            m = await client.get_media_insights(p.ig_media_id)
-            views = m.get("views", m.get("plays", 0))
-            reach = m.get("reach", 0)
-            likes = m.get("likes", 0)
-            comments = m.get("comments", 0)
-            cap = escape_html((p.caption or "")[:30].replace("\n", " "))
-            link = escape_html(p.permalink or "")
-            msg_lines.append(
-                f"🎬 <a href='{link}'>{cap}</a>\n"
-                f"👁 {views:,} views | 👥 {reach:,} reach | ❤️ {likes:,} | 💬 {comments:,}\n"
-            )
-        except Exception:
-            continue
-
-    if len(msg_lines) <= 1:
-        return "Statistika hozircha tayyor emas (Meta ma'lumotlarni 24 soat ichida hisoblaydi).", stats_kb
     return "\n".join(msg_lines), stats_kb
 
 

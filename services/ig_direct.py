@@ -88,6 +88,7 @@ def _create_client(settings: dict[str, Any] | None = None):
     from instagrapi import Client
 
     cl = Client()
+    cl.request_timeout = 20
     cl.delay_range = [1, 3]
     if settings:
         cl.set_settings(settings)
@@ -562,5 +563,18 @@ async def get_live_profile_stats(limit: int = 10) -> dict[str, Any]:
             "items": items,
         }
 
-    return await asyncio.to_thread(_fetch)
+    res = await asyncio.to_thread(_fetch)
+    try:
+        cached_copy = dict(res)
+        cached_items = []
+        for it in res.get("items", []):
+            it_c = dict(it)
+            if hasattr(it_c.get("taken_at"), "isoformat"):
+                it_c["taken_at"] = it_c["taken_at"].isoformat()
+            cached_items.append(it_c)
+        cached_copy["items"] = cached_items
+        await db.set_kv("ig_cached_profile_stats", cached_copy)
+    except Exception as exc:
+        log.warning("Could not cache profile stats: %s", exc)
+    return res
 
