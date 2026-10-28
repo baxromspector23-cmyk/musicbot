@@ -1,11 +1,13 @@
-name: Cloud Autopilot Reels (4x Daily Rek)
+name: Cloud Autopilot Reels (5x Daily Rek)
 
 on:
   schedule:
     # 09:00 Asia/Tashkent (04:00 UTC) - Ertalabki Rek #1
     - cron: "0 4 * * *"
-    # 11:30 Asia/Tashkent (06:30 UTC) - Ertalabki Rek #2
-    - cron: "30 6 * * *"
+    # 11:00 Asia/Tashkent (06:00 UTC) - Ertalabki Rek #2
+    - cron: "0 6 * * *"
+    # 12:00 Asia/Tashkent (07:00 UTC) - Kunduzgi Rek
+    - cron: "0 7 * * *"
     # 18:30 Asia/Tashkent (13:30 UTC) - Kechki Rek #1
     - cron: "30 13 * * *"
     # 20:30 Asia/Tashkent (15:30 UTC) - Kechki Rek #2
@@ -31,9 +33,12 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install FFmpeg and Python dependencies
+      - name: Verify FFmpeg (Pre-installed)
+        run: ffmpeg -version
+
+      - name: Install Python dependencies
         run: |
-          sudo apt-get update -y && sudo apt-get install -y ffmpeg
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run Cloud Autopilot

@@ -36,16 +36,26 @@ async def restore_session_from_env() -> None:
 
 
 def pick_slot_index_for_now() -> int:
-    """Choose slot index (0..3) based on current Asia/Tashkent hour."""
+    """Choose slot index based on current Asia/Tashkent hour/minute."""
     tz = ZoneInfo(config.TZ)
-    local_hour = datetime.now(timezone.utc).astimezone(tz).hour
+    now_local = datetime.now(timezone.utc).astimezone(tz)
+    local_hour = now_local.hour
+    local_min = now_local.minute
+
+    # 09:00 -> Slot 0 (Restoran va Kafe)
     if local_hour < 10:
-        return 0  # 09:00 Restoran & Menyu
-    if local_hour < 15:
-        return 1  # 11:30 Kompaniya & Veb-Sayt
+        return 0
+    # 11:00 -> Slot 1 (Kompaniya va Veb-Sayt)
+    if local_hour == 10 or (local_hour == 11 and local_min < 30):
+        return 1
+    # 12:00 -> Slot 2 (Zamonaviy UI/UX va Interaktiv Saytlar)
+    if (local_hour == 11 and local_min >= 30) or local_hour in (12, 13, 14):
+        return 2
+    # 18:30 -> Slot 3 (Do'konlar uchun Internet-Do'kon)
     if local_hour < 19:
-        return 2  # 18:30 Onlayn Do'kon
-    return 3      # 20:30 Telegram Bot
+        return 3
+    # 20:30 -> Slot 4 (Telegram Bot va Avtomatlashtirish)
+    return 4
 
 
 async def main() -> None:
@@ -75,8 +85,8 @@ async def main() -> None:
                 taken_at = taken_at.replace(tzinfo=timezone.utc)
             age_minutes = (now_utc - taken_at).total_seconds() / 60.0
             log.info("Latest Instagram Reel (%s) was posted %.1f minutes ago", latest["code"], age_minutes)
-            if age_minutes < 80:
-                log.info("A Reel was already posted %.1f min ago (<80 min); skipping duplicate cloud post.", age_minutes)
+            if age_minutes < 35:
+                log.info("A Reel was already posted %.1f min ago (<35 min); skipping duplicate cloud post.", age_minutes)
                 return
 
     slot_idx = pick_slot_index_for_now()

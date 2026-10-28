@@ -21,9 +21,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# 4 daily optimal Rek slots in Asia/Tashkent:
-# - 2 Morning slots: 09:00, 11:30
-# - 2 Evening slots: 18:30, 20:30
+# 5 daily optimal Rek slots in Asia/Tashkent:
+# - Morning: 09:00, 11:00
+# - Midday: 12:00
+# - Evening: 18:30, 20:30
 DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
     {
         "time": "09:00",
@@ -42,8 +43,8 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "hashtags": ["restoranuz", "saytyaratish", "biznesuz", "tadbirkor", "telegrambot"],
     },
     {
-        "time": "11:30",
-        "label": "☀️ Ertalabki Rek #2 (11:30)",
+        "time": "11:00",
+        "label": "☀️ Ertalabki Rek #2 (11:00)",
         "niche": "Kompaniya va Korporativ Veb-Sayt",
         "search_tags": ["webdeveloper", "frontend", "webdesign", "coding"],
         "caption": (
@@ -56,6 +57,22 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
             "📩 Loyiha buyurtma qilish uchun Direct (DM) ga «ZAKAZ» deb yozing!"
         ),
         "hashtags": ["saytyaratish", "biznesuz", "kompaniya", "vebsayt", "tadbirkor"],
+    },
+    {
+        "time": "12:00",
+        "label": "🔥 Kunduzgi Rek (12:00)",
+        "niche": "Zamonaviy UI/UX va Interaktiv Veb-Saytlar",
+        "search_tags": ["webdevelopment", "uiux", "interactivedesign", "javascript"],
+        "caption": (
+            "✨ Biznesingiz uchun eng so'nggi trenddagi Zamonaviy va Interaktiv Veb-Sayt! 🚀\n\n"
+            "Oddiy saytlar mijozni ushlab qololmaydi. Biz yaratadigan saytlar esa mijozni bir ko'rishda hayratda qoldiradi va buyurtma berishga undaydi:\n"
+            "✅ 3D elementlar va silliq interaktiv animatsiyalar\n"
+            "✅ Telefon va noutbuklarda maksimal yuklanish tezligi (< 0.5s)\n"
+            "✅ Onlayn to'lov va to'liq avtomatlashtirilgan CRM tizimi\n\n"
+            "💼 Saytingiz siz uchun 24/7 yangi mijozlar olib kelsin!\n"
+            "📩 Loyihangizni boshlash uchun Direct (DM) ga «SAYT» deb yozing!"
+        ),
+        "hashtags": ["vebsayt", "saytyaratish", "biznesuz", "tadbirkor", "dizayn"],
     },
     {
         "time": "18:30",
