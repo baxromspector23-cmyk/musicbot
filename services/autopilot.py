@@ -199,36 +199,9 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         code = str(chosen.code)
         dl_path = Path(cl.video_download(chosen.pk, folder=temp_dir))
         norm_path = temp_dir / f"norm_{code}.mp4"
-
-        # Generate Uzbek voiceover and Uzbek typography overlay
-        voice_path = temp_dir / f"voice_{code}.mp3"
         overlay_path = temp_dir / f"overlay_{code}.png"
 
-        uz_voice_scripts = [
-            "Restoran yoki kafengiz uchun zamonaviy sayt va onlayn menyu tizimi kerakmi? Yetkazib berish va buyurtma tizimi bilan savdongizni oshiring. Buyurtma berish uchun Direct ga yozing!",
-            "Kompaniyangiz nufuzi va savdosini oshiruvchi zamonaviy korporativ veb-sayt kerakmi? Biznesingiz uchun individual yechimlar. Buyurtma berish uchun Direct ga yozing!",
-            "Biznesingiz uchun eng so'nggi trenddagi zamonaviy va interaktiv veb-saytlar yaratamiz. Savdongizni 24 soat avtomatlashtiring. Direct ga yozing!",
-            "Do'koningiz savdosini 24 soat to'xtovsiz ishlaydigan zamonaviy onlayn do'kon bilan oshiring. Click, Payme va Telegram integratsiyasi. Buyurtma uchun Direct ga yozing!",
-            "Mijozlardan kechayu-kunduz avtomatik buyurtma qabul qiluvchi maxsus Telegram bot yaratib beramiz. Individual loyihalar uchun Direct ga yozing!",
-        ]
-        voice_text = uz_voice_scripts[slot_index % len(uz_voice_scripts)]
-
-        try:
-            subprocess.run(
-                [
-                    "edge-tts",
-                    "--voice", "uz-UZ-SardorNeural",
-                    "--rate=+5%",
-                    "--text", voice_text,
-                    "--write-media", str(voice_path),
-                ],
-                check=True,
-                timeout=30,
-            )
-        except Exception as exc:
-            log.warning("edge-tts voiceover warning: %s", exc)
-
-        # Draw Uzbek top & bottom banners
+        # Draw clean Uzbek top & bottom banners (Visual only, NO AI voiceover - pure music preserved)
         try:
             from PIL import Image, ImageDraw, ImageFont
             font_title = ImageFont.truetype("arialbd.ttf", 36) if os.name == "nt" else ImageFont.load_default()
@@ -255,23 +228,19 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         except Exception as exc:
             log.warning("overlay banner warning: %s", exc)
 
-        # Composite video with Uzbek voice & overlay if available
-        if voice_path.exists() and overlay_path.exists():
+        # Composite video: keep original viral music track at full 100% volume, NO AI VOICEOVER
+        if overlay_path.exists():
             ff_args = [
                 "ffmpeg", "-y", "-v", "quiet",
                 "-i", str(dl_path),
                 "-i", str(overlay_path),
-                "-i", str(voice_path),
                 "-filter_complex",
                 "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30[base];"
-                "[base][1:v]overlay=0:0[vout];"
-                "[0:a]volume=0.20[bg];"
-                "[2:a]volume=1.4,adelay=500|500[voice];"
-                "[bg][voice]amix=inputs=2:duration=first:dropout_transition=2[aout]",
+                "[base][1:v]overlay=0:0[vout]",
                 "-map", "[vout]",
-                "-map", "[aout]",
+                "-map", "0:a?",
                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
-                "-c:a", "aac", "-b:a", "160k",
+                "-c:a", "aac", "-b:a", "192k",
                 "-t", "28",
                 str(norm_path),
             ]
@@ -282,13 +251,12 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                 "-t", "28",
                 "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30",
                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
-                "-c:a", "aac", "-b:a", "160k",
+                "-c:a", "aac", "-b:a", "192k",
                 str(norm_path),
             ]
 
         subprocess.run(ff_args, check=True, timeout=180)
         dl_path.unlink(missing_ok=True)
-        voice_path.unlink(missing_ok=True)
         overlay_path.unlink(missing_ok=True)
         return {
             "path": norm_path,
