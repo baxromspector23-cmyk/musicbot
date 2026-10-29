@@ -2,16 +2,11 @@ name: Cloud Autopilot Reels (5x Daily Rek)
 
 on:
   schedule:
-    # 09:00 Asia/Tashkent (04:00 UTC) - Ertalabki Rek #1
-    - cron: "0 4 * * *"
-    # 11:00 Asia/Tashkent (06:00 UTC) - Ertalabki Rek #2
-    - cron: "0 6 * * *"
-    # 12:00 Asia/Tashkent (07:00 UTC) - Kunduzgi Rek
-    - cron: "0 7 * * *"
-    # 18:30 Asia/Tashkent (13:30 UTC) - Kechki Rek #1
-    - cron: "30 13 * * *"
-    # 20:30 Asia/Tashkent (15:30 UTC) - Kechki Rek #2
-    - cron: "30 15 * * *"
+    # Every hour at :00 (UTC). The runner decides: during the 24h marathon
+    # (2026-10-30 00:00 -> 2026-10-31 00:00 Tashkent) it posts every hour,
+    # at 2026-10-31 00:xx it sends the Telegram stats report,
+    # otherwise it only posts at the regular 5 daily slots.
+    - cron: "0 * * * *"
   push:
     branches:
       - trigger-now

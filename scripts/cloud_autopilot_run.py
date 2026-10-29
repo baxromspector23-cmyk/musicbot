@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
@@ -18,6 +18,84 @@ from services import autopilot, db, ig_direct
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
 log = logging.getLogger("cloud_autopilot")
+
+_TZ = ZoneInfo("Asia/Tashkent")
+# 24-hour marathon: 1 Reel every hour
+MARATHON_START = datetime(2026, 10, 30, 0, 0, tzinfo=_TZ)
+MARATHON_END = datetime(2026, 10, 31, 0, 0, tzinfo=_TZ)
+# Regular posting hours outside the marathon (Tashkent)
+REGULAR_HOURS = {9, 11, 12, 18, 20}
+
+
+async def send_marathon_report(st: dict) -> None:
+    """Collect real stats of every Reel posted during the marathon and send a rich Telegram report."""
+    settings = await ig_direct.load_direct_settings()
+
+    def _collect() -> list:
+        cl = ig_direct._create_client(settings)
+        return cl.user_medias_v1(cl.user_id, amount=60)
+
+    medias = await asyncio.to_thread(_collect)
+    rows = []
+    for m in medias:
+        t = m.taken_at
+        if t is None:
+            continue
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=timezone.utc)
+        t = t.astimezone(_TZ)
+        if MARATHON_START <= t < MARATHON_END:
+            rows.append({
+                "time": t, "code": m.code,
+                "plays": int(getattr(m, "play_count", 0) or getattr(m, "view_count", 0) or 0),
+                "likes": int(m.like_count or 0), "cmts": int(m.comment_count or 0),
+            })
+    rows.sort(key=lambda r: r["time"])
+    tp = sum(r["plays"] for r in rows)
+    tl = sum(r["likes"] for r in rows)
+    tc = sum(r["cmts"] for r in rows)
+    top = sorted(rows, key=lambda r: r["plays"], reverse=True)[:5]
+
+    hourly = {}
+    for r in rows:
+        hourly.setdefault(r["time"].hour, 0)
+        hourly[r["time"].hour] += r["plays"]
+    best_hours = sorted(hourly.items(), key=lambda x: x[1], reverse=True)[:3]
+
+    lines = [
+        "📊 <b>24 SOATLIK MARAFON YAKUNLANDI!</b>",
+        "<i>30-oktabr 00:00 → 31-oktabr 00:00 (Toshkent)</i>",
+        "",
+        f"👤 <b>@{st['username']}</b> — obunachilar: <b>{st['followers']}</b>",
+        "",
+        f"🎬 Joylangan videolar: <b>{len(rows)}/24</b>",
+        f"👁 Jami ko'rishlar: <b>{tp:,}</b>",
+        f"❤️ Jami layklar: <b>{tl:,}</b>",
+        f"💬 Jami kommentlar: <b>{tc:,}</b>",
+        f"📈 O'rtacha (1 video): <b>{(tp // max(len(rows), 1)):,}</b> ko'rish",
+        "",
+        "🏆 <b>TOP-5 video:</b>",
+    ]
+    medals = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"]
+    for i, r in enumerate(top):
+        lines.append(
+            f"{medals[i]} <a href='https://www.instagram.com/reel/{r['code']}/'>{r['time']:%H:%M}</a> — "
+            f"👁 {r['plays']:,} | ❤️ {r['likes']} | 💬 {r['cmts']}"
+        )
+    if best_hours:
+        lines += ["", "⏰ <b>Eng yaxshi soatlar:</b> " + ", ".join(f"{h:02d}:00 ({p:,})" for h, p in best_hours)]
+    lines += ["", "🕐 <b>Soatma-soat:</b>"]
+    for r in rows:
+        lines.append(f"<code>{r['time']:%H:%M}</code> 👁{r['plays']} ❤️{r['likes']} 💬{r['cmts']}")
+
+    text = "\n".join(lines)
+    bot = Bot(token=config.BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
+    try:
+        for i in range(0, len(text), 3900):
+            await bot.send_message(config.OWNER_ID, text[i:i + 3900], disable_web_page_preview=True)
+    finally:
+        await bot.session.close()
+    log.info("Marathon report sent (%d reels)", len(rows))
 
 
 async def restore_session_from_env() -> None:
@@ -77,7 +155,9 @@ async def main() -> None:
 
     # Guard against duplicate posting if another worker (PC or Render) already posted within last 80 minutes
     now_utc = datetime.now(timezone.utc)
-    if not force_post and st["items"]:
+    _now_l = now_utc.astimezone(_TZ)
+    is_report_time = MARATHON_END <= _now_l < MARATHON_END + timedelta(minutes=59)
+    if not force_post and not is_report_time and st["items"]:
         latest = st["items"][0]
         taken_at = latest.get("taken_at")
         if taken_at is not None:
@@ -85,11 +165,26 @@ async def main() -> None:
                 taken_at = taken_at.replace(tzinfo=timezone.utc)
             age_minutes = (now_utc - taken_at).total_seconds() / 60.0
             log.info("Latest Instagram Reel (%s) was posted %.1f minutes ago", latest["code"], age_minutes)
-            if age_minutes < 35:
-                log.info("A Reel was already posted %.1f min ago (<35 min); skipping duplicate cloud post.", age_minutes)
+            if age_minutes < 20:
+                log.info("A Reel was already posted %.1f min ago (<20 min); skipping duplicate cloud post.", age_minutes)
                 return
 
     slot_idx = pick_slot_index_for_now()
+    tz = ZoneInfo(config.TZ)
+    now_local = datetime.now(timezone.utc).astimezone(tz)
+
+    if not force_post:
+        # Final stats report right after the marathon ends
+        if now_local >= MARATHON_END and now_local < MARATHON_END + timedelta(minutes=59):
+            await send_marathon_report(st)
+            return
+        if MARATHON_START <= now_local < MARATHON_END:
+            slot_idx = now_local.hour % len(autopilot.DAILY_SLOTS_SPEC)
+            log.info("24h marathon: hourly post #%d (slot %d)", now_local.hour + 1, slot_idx)
+        elif now_local.hour not in REGULAR_HOURS:
+            log.info("Not a posting hour (%02d:00); skipping.", now_local.hour)
+            return
+
     for i, arg in enumerate(sys.argv):
         if arg == "--slot" and i + 1 < len(sys.argv):
             try:
@@ -103,6 +198,11 @@ async def main() -> None:
     norm_path = vid_info["path"]
     try:
         caption_text = vid_info.get("caption") or spec.get("caption", "")
+        if "KOD" not in caption_text:
+            caption_text += (
+                "\n\n👇 Siz qaysi biridan foydalanasiz? 1-mi yoki 2-mi? Kommentda yozing!\n"
+                "💬 Skript kerak bo'lsa kommentga «KOD» deb yozing, Direct'ga yuboramiz! 📥"
+            )
         full_caption = f"{caption_text}\n\n{' '.join('#' + t for t in spec['hashtags'])}"
         media_id, permalink = await ig_direct.upload_reel(norm_path, full_caption)
         log.info("Successfully published Cloud Autopilot Reel: %s", permalink)
