@@ -90,7 +90,13 @@ async def main() -> None:
                 return
 
     slot_idx = pick_slot_index_for_now()
-    spec = autopilot.DAILY_SLOTS_SPEC[slot_idx]
+    for i, arg in enumerate(sys.argv):
+        if arg == "--slot" and i + 1 < len(sys.argv):
+            try:
+                slot_idx = int(sys.argv[i + 1])
+            except Exception:
+                pass
+    spec = autopilot.DAILY_SLOTS_SPEC[slot_idx % len(autopilot.DAILY_SLOTS_SPEC)]
     log.info("Running Cloud Autopilot for slot %d: %s (%s)", slot_idx, spec["label"], spec["niche"])
 
     vid_info = await autopilot.find_and_download_b2b_video(slot_idx)
