@@ -129,29 +129,42 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         ],
         "captions": [
             (
-                "💻 Terminalda ishlashni yangi darajaga olib chiquvchi buyruqlar va xaklar! ⚡️\n\n"
-                "Sichqonchani unuting — haqiqiy dasturchilar hamma narsani terminalda bajaradi:\n"
-                "✅ Ishni 5 barobar tezlashtiruvchi CLI buyruqlar\n"
-                "✅ Qulay qidiruv va fayl boshqaruvi\n"
+                "⚡️ Hech kim bilmaydigan eng kuchli Terminal xaklari va CLI skriptlar! 💻🔥\n\n"
+                "Sichqonchani unuting — dasturchilar va IT mutaxassislari hamma vazifani terminalda 5 baravar tezroq bajaradi!\n\n"
+                "✅ Ishni 10x tezlashtiruvchi CLI buyruqlar\n"
+                "✅ Tezkor navigatsiya va fayllarni boshqarish\n"
                 "✅ Zsh, Bash va Neovim ajoyib konfiguratsiyalari\n\n"
-                "🚀 Terminal estetikasini yaxshi ko'radiganlar uchun: @coder_bahrom"
+                "💬 Ushbu skriptlar to'plami kerakmi? Kommentga «KOD» deb yozing, Direct'ga to'liq yuboramiz! 📥👇\n\n"
+                "🚀 Profilimizda har kuni eng zo'r IT sirlari! Obuna: @coder_bahrom"
             ),
             (
-                "⚡️ Klaviaturadan qo'lni uzmasdan ishlash! Terminal dasturchi sirlari 🛠🔥\n\n"
-                "Oddiy buyruqlar orqali katta natijalarga erishing:\n"
-                "✅ Maxsus alias va skriptlar\n"
-                "✅ Jarayonlar va serverlarni tezkor monitoring qilish\n"
-                "✅ Git va GitHub bilan terminalda ishlash\n\n"
-                "💎 Foydali bo'lsa «Save» qilib oling va @coder_bahrom ga obuna bo'ling!"
+                "🔥 Dasturchilar ishini 5 baravar tezlashtiruvchi Terminal vositalari! 🛠⚡️\n\n"
+                "Rutin ishlarga vaqtingizni sarflamang, terminal skriptlari hammasini avtomatlashtiradi:\n\n"
+                "✅ Kuchli CLI qidiruv va ma'lumot tahlili\n"
+                "✅ Birgina buyruq bilan murakkab jarayonlarni boshqarish\n"
+                "✅ Linux, Mac va Windows uchun to'liq mos\n\n"
+                "👇 Siz qaysi biridan ko'proq foydalanasiz? Terminal-mi yoki Sichqoncha? Fikringizni kommentda yozing!\n"
+                "💬 Skript kerak bo'lsa kommentga «KOD» deb yozing, Direct'ga yuboramiz!\n\n"
+                "Kanalimiz: @coder_bahrom"
+            ),
+            (
+                "🚀 Klaviaturadan qo'lni uzmasdan ishlash! Terminal dasturchi sirlari ⚡️💻\n\n"
+                "Noldan kod yozib o'tirmang — tayyor ochiq kodli vositalar orqali professional darajaga chiqing:\n\n"
+                "✅ Zsh, Bash va CLI maxsus aliaslari\n"
+                "✅ Serverlarni 1 soniyada monitoring qilish\n"
+                "✅ Git va GitHub buyruqlarini avtomatlashtirish\n\n"
+                "💬 Skriptlarni olish uchun kommentga «KOD» deb yozing, Direct'ga jo'natamiz! 📥\n"
+                "💎 Do'stingizga ham yuboring, u ham vaqtini tejashni o'rgansin! Obuna: @coder_bahrom"
             ),
         ],
         "caption": (
-            "💻 Terminalda ishlashni yangi darajaga olib chiquvchi buyruqlar va xaklar! ⚡️\n\n"
-            "Sichqonchani unuting — haqiqiy dasturchilar hamma narsani terminalda bajaradi:\n"
-            "✅ Ishni 5 barobar tezlashtiruvchi CLI buyruqlar\n"
-            "✅ Qulay qidiruv va fayl boshqaruvi\n"
+            "⚡️ Hech kim bilmaydigan eng kuchli Terminal xaklari va CLI skriptlar! 💻🔥\n\n"
+            "Sichqonchani unuting — dasturchilar va IT mutaxassislari hamma vazifani terminalda 5 baravar tezroq bajaradi!\n\n"
+            "✅ Ishni 10x tezlashtiruvchi CLI buyruqlar\n"
+            "✅ Tezkor navigatsiya va fayllarni boshqarish\n"
             "✅ Zsh, Bash va Neovim ajoyib konfiguratsiyalari\n\n"
-            "🚀 Terminal estetikasini yaxshi ko'radiganlar uchun: @coder_bahrom"
+            "💬 Ushbu skriptlar to'plami kerakmi? Kommentga «KOD» deb yozing, Direct'ga to'liq yuboramiz! 📥👇\n\n"
+            "🚀 Profilimizda har kuni eng zo'r IT sirlari! Obuna: @coder_bahrom"
         ),
         "hashtags": ["terminal", "linux", "dasturchi", "bash", "codinglife", "ituz", "coder"],
     },
@@ -376,7 +389,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                     owner_pk = str(getattr(getattr(m, "user", None), "pk", "") or "")
                     if (
                         mtype == 2
-                        and 6.0 <= dur <= 38.0
+                        and 7.0 <= dur <= 19.5
                         and code
                         and code not in used_codes
                         and code not in existing_codes
@@ -398,7 +411,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                     owner_pk = str(getattr(getattr(m, "user", None), "pk", "") or "")
                     if (
                         mtype == 2
-                        and 6.0 <= dur <= 38.0
+                        and 7.0 <= dur <= 19.5
                         and code
                         and code not in used_codes
                         and code not in existing_codes
@@ -449,17 +462,17 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             overlay_img = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
             odraw = ImageDraw.Draw(overlay_img)
 
-            # Top Uzbek banner (sleek dark glass effect)
+            # Top Uzbek banner (sleek dark glass effect with viral hook)
             top_box = [90, 370, 990, 525]
-            odraw.rounded_rectangle(top_box, radius=20, fill=(12, 15, 24, 210), outline=(0, 220, 255, 230), width=3)
-            odraw.text((130, 395), spec["niche"][:32].upper(), font=font_title, fill=(255, 255, 255))
-            odraw.text((145, 460), "GitHub & Dev Skriptlar | @coder_bahrom", font=font_sub, fill=(0, 230, 255))
+            odraw.rounded_rectangle(top_box, radius=20, fill=(12, 15, 24, 215), outline=(0, 220, 255, 230), width=3)
+            odraw.text((140, 395), "🔥 DASTURCHILAR UCHUN TOP SKRIPT ⚡️", font=font_title, fill=(255, 255, 255))
+            odraw.text((180, 460), "Tezkor Terminal & CLI Xaklari | @coder_bahrom", font=font_sub, fill=(0, 230, 255))
 
-            # Bottom Uzbek CTA (sleek golden pill badge)
+            # Bottom Uzbek CTA (high-converting comment trigger badge)
             bot_box = [90, 1675, 990, 1825]
-            odraw.rounded_rectangle(bot_box, radius=20, fill=(12, 15, 24, 210), outline=(255, 195, 45, 230), width=3)
-            odraw.text((140, 1698), "Foydali skriptlar va IT vositalar", font=font_cta, fill=(255, 220, 90))
-            odraw.text((380, 1752), "@coder_bahrom", font=font_brand, fill=(255, 255, 255))
+            odraw.rounded_rectangle(bot_box, radius=20, fill=(12, 15, 24, 220), outline=(255, 195, 45, 230), width=3)
+            odraw.text((150, 1698), "💬 Kommentga «KOD» deb yozing!", font=font_cta, fill=(255, 220, 90))
+            odraw.text((185, 1752), "Direct'ga skriptni yuboramiz | @coder_bahrom", font=font_brand, fill=(255, 255, 255))
 
             overlay_img.save(overlay_path)
         except Exception as exc:
