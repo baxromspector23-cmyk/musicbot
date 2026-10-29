@@ -25,284 +25,245 @@ log = logging.getLogger(__name__)
 # - Morning: 09:00, 11:00
 # - Midday: 12:00
 # - Evening: 18:30, 20:30
+INDIAN_AND_UNWANTED_KEYWORDS: set[str] = {
+    # Countries, regions, cities, states, institutes
+    "india", "indian", "desi", "desicoder", "delhi", "mumbai", "bangalore", "bengaluru",
+    "hyderabad", "pune", "chennai", "kolkata", "noida", "gurgaon", "iit", "nit", "btech",
+    # Hindi romanized words
+    "hindi", "hinglish", "bhai", "yaar", "karo", "hai", "kare", "kaise", "seekho", "dost",
+    "karna", "samjho", "dekho", "dekhiye", "chahiye", "rakho", "wala", "wali", "mera", "meri",
+    "apna", "apni", "paisa", "rupee", "rupees", "crore", "lakh", "roopya", "joblagi",
+    "shuru", "kijiye", "padho", "bolo", "namaste", "namaskar",
+    # Typical Indian corporate tags/memes
+    "tcs", "infosys", "wipro", "cognizant", "accentureindia", "hcl",
+    # Indian names common in handles/usernames/full names
+    "singh", "sharma", "patel", "kumar", "gupta", "verma", "yadav", "choudhary", "reddy",
+    "nair", "joshi", "mehta", "shah", "das", "roy", "mishra", "pandey", "tiwari", "babu",
+    "chaurasia", "deshmukh", "shukla", "agarwal", "bhat", "chaudhary", "mukherjee",
+}
+
+
+def is_unwanted_content(media: Any) -> bool:
+    """Return True if media has Hindi/Devanagari text, Indian keywords, or Indian creator handles."""
+    import re
+    caption = str(getattr(media, "caption_text", "") or "").lower()
+
+    # 1. Check Devanagari script (Hindi characters range: \u0900-\u097F)
+    for ch in caption:
+        if "\u0900" <= ch <= "\u097f":
+            return True
+
+    # 2. Check username and full_name
+    user = getattr(media, "user", None)
+    username = str(getattr(user, "username", "") or "").lower()
+    full_name = str(getattr(user, "full_name", "") or "").lower()
+
+    for ch in f"{username} {full_name}":
+        if "\u0900" <= ch <= "\u097f":
+            return True
+
+    # 3. Check tokens for Indian keywords
+    tokens = set(re.findall(r"[a-z]+", f"{caption} {username} {full_name}"))
+    if tokens.intersection(INDIAN_AND_UNWANTED_KEYWORDS):
+        return True
+
+    return False
+
+
+# 5 daily optimal Rek slots in Asia/Tashkent (Special 2-Day GitHub & Hack Scripts Edition):
 DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
     {
         "time": "09:00",
         "label": "🌅 Ertalabki Rek #1 (09:00)",
-        "niche": "Restoran va Kafe Onlayn Menyu",
+        "niche": "GitHub Open-Source & Dasturchi Skriptlari",
         "search_tags": [
-            "restaurantwebsite", "cafemenu", "foodapp", "restaurantmenu", "digitalmenu",
-            "restauranttech", "webdesign", "uidesign", "webdevelopment", "uxdesign",
-            "foodordering", "creativeagency", "cafedesign", "modernwebsite",
+            "github", "githubproject", "git", "opensource", "commandline", "terminal",
+            "bashscript", "zsh", "pythonscript", "terminalaesthetic", "developer", "codinglife",
         ],
         "captions": [
             (
-                "🍽 Restoran yoki kafengiz uchun mijozlarni jalb qiluvchi Zamonaviy Sayt va Onlayn Menyu! ✨\n\n"
-                "Mijozlaringiz telefon orqali menyuni ko'rib, birgina tugma bilan buyurtma berishini xohlaysizmi?\n"
-                "✅ Interaktiv 3D / foto menyu va QR-kod tizimi\n"
-                "✅ Yetkazib berish (Dostavka) va bron qilish funksiyasi\n"
-                "✅ Telegram bot bilan to'liq integratsiya\n\n"
-                "📈 Restoraningiz savdosini 2 barobarga oshiring!\n"
-                "📩 Zakaz berish uchun Direct (DM) ga «MENYU» yoki «ZAKAZ» deb yozing!"
+                "⚡️ Har bir dasturchi bilishi shart bo'lgan Top GitHub skriptlari! 💻🔥\n\n"
+                "Ochiq kodli (Open-source) eng qulay va kuchli vositalar orqali ishingizni 10x tezlashtiring:\n"
+                "✅ Bepul va ochiq kodli GitHub loyihalari\n"
+                "✅ Kod yozish va vazifalarni avtomatlashtirish\n"
+                "✅ Terminalda birgina buyruq bilan ishga tushirish\n\n"
+                "🚀 Profilimizda har kuni eng zo'r IT xaklar va dasturlash sirlari!\n"
+                "Obuna bo'ling: @coder_bahrom"
             ),
             (
-                "☕️ Qahvaxona yoki restoraningizga yangi mijozlar oqimini oshirmoqchimisiz? 🚀\n\n"
-                "Zamonaviy mehmonlar ofitsiantni kutishni yoqtirishmaydi. Smart Onlayn Menyu tizimi orqali:\n"
-                "✅ Stol ustidagi QR-kod orqali tezkor buyurtma\n"
-                "✅ O'zbek, rus va ingliz tillarida qulay menyu\n"
-                "✅ Admin panel va kunlik tushumlar hisoboti\n\n"
-                "💼 Muassasangiz nufuzini yangi darajaga olib chiqing!\n"
-                "📩 Individual tizim uchun Direct (DM) ga «RESTORAN» deb yozing!"
+                "🔥 GitHub dagi aqlbovar qilmas foydali ochiq kodli loyihalar! 🛠✨\n\n"
+                "Bular haqida ko'pchilik bilmaydi, lekin har bir dasturchining hayotini yengillashtiradi:\n"
+                "✅ Qidiruv va kod tahlili uchun tayyor skriptlar\n"
+                "✅ Ish unumdorligini oshiruvchi CLI vositalar\n"
+                "✅ Ochiq kod — istalgan loyihaga moslashtiring\n\n"
+                "💎 Foydali bo'lsa saqlab qo'ying va do'stlarga ulashing!\n"
+                "Kanalimiz: @coder_bahrom"
             ),
             (
-                "📲 Telefon orqali 1 daqiqada zakaz qabul qiluvchi Zamonaviy Menyu Sayti! 🍕\n\n"
-                "Yetkazib berish xizmatini uchinchi tomon agregatorlarisiz, to'g'ridan-to'g'ri o'zingiz boshqaring:\n"
-                "✅ Click, Payme va naqd to'lov tizimlari\n"
-                "✅ Har bir buyurtma darhol Telegram guruhingizga tushadi\n"
-                "✅ Oylik komissiyasiz, 100% o'zingizga tegishli tizim\n\n"
-                "🔥 Buyurtma berish uchun Direct (DM) ga «ZAKAZ» deb yozing!"
-            ),
-            (
-                "🍔 Taomlaringizni eng jozibador ko'rinishda taqdim etuvchi zamonaviy veb-sayt! ✨\n\n"
-                "Nafis dizayn va maksimal tezlik bilan ishlovchi yechim:\n"
-                "✅ Animatsiyali taomlar kartochkasi\n"
-                "✅ Mijozlar uchun sodiq bonuslar tizimi\n"
-                "✅ Barcha smartfonlarga moslashuvchan interfeys\n\n"
-                "📩 Restoraningiz uchun individual saytga buyurtma bering: Direct ga yozing!"
+                "🚀 GitHub dagi eng sara skriptlar va dasturchi xaklari! ⚡️\n\n"
+                "Noldan yozib o'tirmang — hammasi GitHub da tayyor va ochiq:\n"
+                "✅ Avtomatlashtirilgan repozitoriylar\n"
+                "✅ CLI va terminal skriptlari\n"
+                "✅ Ishlab chiquvchilar uchun eng yangi trendlar\n\n"
+                "💻 Ko'proq IT sirlari uchun sahifamizni kuzatib boring: @coder_bahrom"
             ),
         ],
         "caption": (
-            "🍽 Restoran yoki kafengiz uchun mijozlarni jalb qiluvchi Zamonaviy Sayt va Onlayn Menyu! ✨\n\n"
-            "Mijozlaringiz telefon orqali menyuni ko'rib, birgina tugma bilan buyurtma berishini xohlaysizmi?\n"
-            "✅ Interaktiv 3D / foto menyu va QR-kod tizimi\n"
-            "✅ Yetkazib berish (Dostavka) va bron qilish funksiyasi\n"
-            "✅ Telegram bot bilan to'liq integratsiya\n\n"
-            "📈 Restoraningiz savdosini 2 barobarga oshiring!\n"
-            "📩 Zakaz berish uchun Direct (DM) ga «MENYU» yoki «ZAKAZ» deb yozing!"
+            "⚡️ Har bir dasturchi bilishi shart bo'lgan Top GitHub skriptlari! 💻🔥\n\n"
+            "Ochiq kodli (Open-source) eng qulay va kuchli vositalar orqali ishingizni 10x tezlashtiring:\n"
+            "✅ Bepul va ochiq kodli GitHub loyihalari\n"
+            "✅ Kod yozish va vazifalarni avtomatlashtirish\n"
+            "✅ Terminalda birgina buyruq bilan ishga tushirish\n\n"
+            "🚀 Profilimizda har kuni eng zo'r IT xaklar va dasturlash sirlari!\n"
+            "Obuna bo'ling: @coder_bahrom"
         ),
-        "hashtags": ["restoranuz", "saytyaratish", "biznesuz", "tadbirkor", "telegrambot"],
+        "hashtags": ["github", "dasturlash", "ituz", "coder", "dasturchi", "opensource", "pythonscript"],
     },
     {
         "time": "11:00",
         "label": "☀️ Ertalabki Rek #2 (11:00)",
-        "niche": "Kompaniya va Korporativ Veb-Sayt",
+        "niche": "Terminal & CLI Xaklari / Tezkor Skriptlar",
         "search_tags": [
-            "corporatedesign", "businesswebsite", "landingpage", "webagency", "branddesign",
-            "webdeveloper", "frontend", "minimaldesign", "websitedesigning", "fullstackdeveloper",
-            "cleanwebsite", "modernui", "corporatesite",
+            "terminal", "clitools", "linuxcommands", "neovim", "commandline", "bash",
+            "archlinux", "developerlife", "darkmode", "codingsetup", "ittools", "zsh",
         ],
         "captions": [
             (
-                "💼 Kompaniyangiz nufuzini va savdosini oshiruvchi Zamonaviy Veb-Sayt kerakmi? 🚀\n\n"
-                "Har bir loyihani 0 dan boshlab, zamonaviy dizayn va tezkor kod asosida tayyorlab beramiz:\n"
-                "✅ Kompaniya va xizmat ko'rsatish bizneslari uchun Korporativ Sayt\n"
-                "✅ Yuqori konversiyali Landing Page\n"
-                "✅ Google va Instagram qidiruviga (SEO) moslashtirilgan tizim\n\n"
-                "🤝 Biznesingizni onlaynda yangi bosqichga olib chiqing!\n"
-                "📩 Loyiha buyurtma qilish uchun Direct (DM) ga «ZAKAZ» deb yozing!"
+                "💻 Terminalda ishlashni yangi darajaga olib chiquvchi buyruqlar va xaklar! ⚡️\n\n"
+                "Sichqonchani unuting — haqiqiy dasturchilar hamma narsani terminalda bajaradi:\n"
+                "✅ Ishni 5 barobar tezlashtiruvchi CLI buyruqlar\n"
+                "✅ Qulay qidiruv va fayl boshqaruvi\n"
+                "✅ Zsh, Bash va Neovim ajoyib konfiguratsiyalari\n\n"
+                "🚀 Terminal estetikasini yaxshi ko'radiganlar uchun: @coder_bahrom"
             ),
             (
-                "🌐 Har qanday nufuzli biznesning asosi — bu professional veb-sayt! 🏆\n\n"
-                "Mijozlaringiz sizni qidirganda professional ko'rinishga ega bo'ling:\n"
-                "✅ Ishonch uyg'otuvchi premium vizual uslub\n"
-                "✅ Xizmatlar, portfolio va mijozlar fikrlari bo'limi\n"
-                "✅ Direct va Telegram orqali avtomatik arizalar qabul qilish\n\n"
-                "💼 Kompaniyangiz uchun individual taklif oling:\n"
-                "📩 Direct (DM) ga «SAYT» deb yozing!"
-            ),
-            (
-                "📈 Reklamadan kelgan mijozlarni 3 barobar ko'proq ushlab qoluvchi Landing Page! ⚡\n\n"
-                "Oddiy sahifalar mijozni yo'qotadi. Biz yaratgan saytlar esa sotuvga yo'naltirilgan:\n"
-                "✅ Kuchli marketing tuzilmasi va chaqiruv tugmalari (CTA)\n"
-                "✅ 0.4 soniyalik maksimal yuklanish tezligi\n"
-                "✅ CRM tizimlariga to'g'ridan-to'g'ri ulanish\n\n"
-                "📩 Bepul konsultatsiya olish uchun Direct ga yozing!"
-            ),
-            (
-                "💎 Biznesingiz brendini bozorda yetakchiga aylantiruvchi veb-yechimlar! ✨\n\n"
-                "Kompaniya ko'lamini ko'rsatuvchi zamonaviy IT yechimlar yaratamiz:\n"
-                "✅ Eksklyuziv dizayn, shablonlarsiz toza kod\n"
-                "✅ Domen, xosting va xavfsizlik (SSL) to'liq sozlanadi\n"
-                "✅ 1 yillik bepul texnik yordam va kafolat\n\n"
-                "🤝 Hamkorlik uchun Direct (DM) ga yozing!"
+                "⚡️ Klaviaturadan qo'lni uzmasdan ishlash! Terminal dasturchi sirlari 🛠🔥\n\n"
+                "Oddiy buyruqlar orqali katta natijalarga erishing:\n"
+                "✅ Maxsus alias va skriptlar\n"
+                "✅ Jarayonlar va serverlarni tezkor monitoring qilish\n"
+                "✅ Git va GitHub bilan terminalda ishlash\n\n"
+                "💎 Foydali bo'lsa «Save» qilib oling va @coder_bahrom ga obuna bo'ling!"
             ),
         ],
         "caption": (
-            "💼 Kompaniyangiz nufuzini va savdosini oshiruvchi Zamonaviy Veb-Sayt kerakmi? 🚀\n\n"
-            "Har bir loyihani 0 dan boshlab, zamonaviy dizayn va tezkor kod asosida tayyorlab beramiz:\n"
-            "✅ Kompaniya va xizmat ko'rsatish bizneslari uchun Korporativ Sayt\n"
-            "✅ Yuqori konversiyali Landing Page\n"
-            "✅ Google va Instagram qidiruviga (SEO) moslashtirilgan tizim\n\n"
-            "🤝 Biznesingizni onlaynda yangi bosqichga olib chiqing!\n"
-            "📩 Loyiha buyurtma qilish uchun Direct (DM) ga «ZAKAZ» deb yozing!"
+            "💻 Terminalda ishlashni yangi darajaga olib chiquvchi buyruqlar va xaklar! ⚡️\n\n"
+            "Sichqonchani unuting — haqiqiy dasturchilar hamma narsani terminalda bajaradi:\n"
+            "✅ Ishni 5 barobar tezlashtiruvchi CLI buyruqlar\n"
+            "✅ Qulay qidiruv va fayl boshqaruvi\n"
+            "✅ Zsh, Bash va Neovim ajoyib konfiguratsiyalari\n\n"
+            "🚀 Terminal estetikasini yaxshi ko'radiganlar uchun: @coder_bahrom"
         ),
-        "hashtags": ["saytyaratish", "biznesuz", "kompaniya", "vebsayt", "tadbirkor"],
+        "hashtags": ["terminal", "linux", "dasturchi", "bash", "codinglife", "ituz", "coder"],
     },
     {
         "time": "12:00",
         "label": "🔥 Kunduzgi Rek (12:00)",
-        "niche": "Zamonaviy UI/UX va Interaktiv Veb-Saytlar",
+        "niche": "Python Avtomatlashtirish & Cyber Skriptlar",
         "search_tags": [
-            "uiux", "interactivedesign", "webdevelopment", "threejs", "frontenddeveloper",
-            "3ddesign", "awwwards", "creativecoding", "cssanimation", "javascript",
-            "uidesign", "webdeveloper", "frontend",
+            "pythonscripts", "automation", "pythoncode", "scripting", "networksecurity",
+            "cybersecuritytools", "infosec", "codingdays", "ethicalhacking", "programming",
         ],
         "captions": [
             (
-                "✨ Biznesingiz uchun eng so'nggi trenddagi Zamonaviy va Interaktiv Veb-Sayt! 🚀\n\n"
-                "Oddiy saytlar mijozni ushlab qololmaydi. Biz yaratadigan saytlar esa mijozni bir ko'rishda hayratda qoldiradi va buyurtma berishga undaydi:\n"
-                "✅ 3D elementlar va silliq interaktiv animatsiyalar\n"
-                "✅ Telefon va noutbuklarda maksimal yuklanish tezligi (< 0.5s)\n"
-                "✅ Onlayn to'lov va to'liq avtomatlashtirilgan CRM tizimi\n\n"
-                "💼 Saytingiz siz uchun 24/7 yangi mijozlar olib kelsin!\n"
-                "📩 Loyihangizni boshlash uchun Direct (DM) ga «SAYT» deb yozing!"
+                "🐍 Python da vazifalarni avtomatlashtiruvchi ajoyib skriptlar! ⚡️💻\n\n"
+                "Soatlab qilinadigan ishlarni bir necha qator kod orqali 5 soniyada bajaring:\n"
+                "✅ Internetdan ma'lumotlarni avtomatik yig'ish (Scraping)\n"
+                "✅ Fayllarni saralash va avtomatik hisobotlar\n"
+                "✅ Tarmoq va xavfsizlik monitoringi skriptlari\n\n"
+                "🚀 Python dasturlash va avtomatlashtirish sirlari: @coder_bahrom"
             ),
             (
-                "⚡️ Sayt shunchaki matn emas — bu mijoz bilan hissiy aloqa! 🎨\n\n"
-                "Awwwards darajasidagi interaktiv UI/UX dizayn va silliq mikro-animatsiyalar:\n"
-                "✅ Premium vizual effektlar\n"
-                "✅ Foydalanuvchi uchun nihoyatda qulay navigatsiya\n"
-                "✅ Raqobatchilaringizdan darhol ajralib turish kafolati\n\n"
-                "🔥 O'z loyihangizni boshlash uchun Direct ga «UIUX» deb yozing!"
-            ),
-            (
-                "💻 Zamonaviy kod va chiroyli animatsiyalar uyg'unligi! 🛠\n\n"
-                "React, Vue va ilg'or frontend texnologiyalarida yaratilgan loyihalar:\n"
-                "✅ Har bir piksel aniq va qat'iy tekshiriladi\n"
-                "✅ Har qanday ekranda mukammal moslashuv (Responsive)\n"
-                "✅ Tez, xavfsiz va kelajakka mo'ljallangan arxitektura\n\n"
-                "📩 Sayt yaratish bo'yicha maslahat olish uchun Direct ga yozing!"
-            ),
-            (
-                "🎯 Saytingiz 3 soniya ichida mijozda WOW-effekt uyg'otishi kerak! ✨\n\n"
-                "Nafis interfeyslar va kuchli dasturlash asosida tayyorlangan yechimlar:\n"
-                "✅ Silliq scroll va dinamik kartochkalar\n"
-                "✅ Mijoz e'tiborini kerakli tugmaga yo'naltiruvchi dizayn\n"
-                "✅ Katta savdolarga zamin yaratuvchi zamonaviy IT mahsulot\n\n"
-                "📩 Zakaz berish uchun Direct (DM) ga yozing!"
+                "🤖 Rutin ishlarni kodga topshiring! Python avtomatlashtirish xaklari 🔥\n\n"
+                "Dasturchi va IT mutaxassislari uchun tayyor vositalar:\n"
+                "✅ API bilan ishlash va ma'lumotlar tahlili\n"
+                "✅ Telegram botlar orqali boshqariluvchi skriptlar\n"
+                "✅ Ochiq kodli GitHub loyihalari\n\n"
+                "💡 Profilimizga obuna bo'ling: @coder_bahrom"
             ),
         ],
         "caption": (
-            "✨ Biznesingiz uchun eng so'nggi trenddagi Zamonaviy va Interaktiv Veb-Sayt! 🚀\n\n"
-            "Oddiy saytlar mijozni ushlab qololmaydi. Biz yaratadigan saytlar esa mijozni bir ko'rishda hayratda qoldiradi va buyurtma berishga undaydi:\n"
-            "✅ 3D elementlar va silliq interaktiv animatsiyalar\n"
-            "✅ Telefon va noutbuklarda maksimal yuklanish tezligi (< 0.5s)\n"
-            "✅ Onlayn to'lov va to'liq avtomatlashtirilgan CRM tizimi\n\n"
-            "💼 Saytingiz siz uchun 24/7 yangi mijozlar olib kelsin!\n"
-            "📩 Loyihangizni boshlash uchun Direct (DM) ga «SAYT» deb yozing!"
+            "🐍 Python da vazifalarni avtomatlashtiruvchi ajoyib skriptlar! ⚡️💻\n\n"
+            "Soatlab qilinadigan ishlarni bir necha qator kod orqali 5 soniyada bajaring:\n"
+            "✅ Internetdan ma'lumotlarni avtomatik yig'ish (Scraping)\n"
+            "✅ Fayllarni saralash va avtomatik hisobotlar\n"
+            "✅ Tarmoq va xavfsizlik monitoringi skriptlari\n\n"
+            "🚀 Python dasturlash va avtomatlashtirish sirlari: @coder_bahrom"
         ),
-        "hashtags": ["vebsayt", "saytyaratish", "biznesuz", "tadbirkor", "dizayn"],
+        "hashtags": ["python", "automation", "dasturlash", "ituzbekistan", "coding", "techtools"],
     },
     {
         "time": "18:30",
         "label": "🌆 Kechki Rek #1 (18:30)",
-        "niche": "Do'konlar uchun Internet-Do'kon & Katalog",
+        "niche": "Top Dasturchi Vositalari & Dark Aesthetic Setup",
         "search_tags": [
-            "ecommercewebsite", "onlineshopdesign", "shopifydesign", "webshop", "appdesign",
-            "productdesign", "mobileappdesign", "cleanui", "ecommercedeveloper", "uxdesign",
-            "uidesign", "webdesign",
+            "developertools", "programmerlife", "codingsetup", "darkaesthetic", "matrixcode",
+            "vscode", "devcommunity", "fullstack", "programminglife",
         ],
         "captions": [
             (
-                "🛍 Do'koningiz savdosini 24/7 to'xtovsiz ishlaydigan Onlayn Do'kon bilan oshiring! ✨\n\n"
-                "Mijozlar mahsulotlaringizni qulay katalogda ko'rib, darhol xarid qilishlari uchun zamonaviy yechim:\n"
-                "✅ Barcha telefon va kompyuterlarga moslashuvchan dizayn\n"
-                "✅ Click / Payme to'lov tizimlari va savatcha funksiyasi\n"
-                "✅ Buyurtmalarni Telegram orqali tezkor qabul qilish\n\n"
-                "📈 Savdoingizni avtomatlashtirish vaqti keldi!\n"
-                "📩 Zakaz berish uchun Direct (DM) ga «DOKON» yoki «ZAKAZ» deb yozing!"
+                "✨ Har bir dasturchining noutbukida bo'lishi kerak bo'lgan super vositalar! 💻🖤\n\n"
+                "Ish muhitini (workflow) maksimal qulay va chiroyli qilish sirlari:\n"
+                "✅ Dark aesthetic kod muhiti va mavzular\n"
+                "✅ Foydali VS Code va terminal plaginlari\n"
+                "✅ Ish unumdorligini (Productivity) oshiruvchi vositalar\n\n"
+                "🔥 Eng so'nggi IT trendlar uchun bizga qo'shiling: @coder_bahrom"
             ),
             (
-                "📦 Mahsulotlaringizni butun O'zbekiston bo'ylab onlayn soting! 🚚\n\n"
-                "Do'koningiz faqat bitta manzilda cheklanib qolmasin:\n"
-                "✅ Qulay filtrlar, o'lchamlar va ranglar tanlash imkoniyati\n"
-                "✅ Bir zumda to'lov va xarid chekini yuborish\n"
-                "✅ Ombor hisobi va qoldiqlar nazorati\n\n"
-                "💼 O'z onlayn do'koningizni ishga tushiring:\n"
-                "📩 Hoziroq Direct (DM) ga yozing!"
-            ),
-            (
-                "🛒 Savdoni Instagram Direct dan to'liq avtomatlashtirilgan tizimga o'tkazing! ⚡\n\n"
-                "Har bir mijozga narx yozib o'tirmang — sayt barchasini o'zi bajaradi:\n"
-                "✅ 24 soat avtomatik buyurtma qabul qilish\n"
-                "✅ Telefon raqami va manzilni xatosiz kiritish formasi\n"
-                "✅ Yetkazib beruvchilarga tayyor marshrut ma'lumotlari\n\n"
-                "📩 Onlayn do'kon ochish uchun Direct ga «SAVDO» deb yozing!"
-            ),
-            (
-                "📱 Zamonaviy mobil internet-do'kon — mijozlar cho'ntagidagi biznesingiz! 💎\n\n"
-                "Ilovadek tez ochiladigan PWA veb-do'konlar:\n"
-                "✅ Tezkor savatcha va buyurtma rasmiylashtirish\n"
-                "✅ Chegirma promokodlari va aksiyalar bo'limi\n"
-                "✅ Mijozlar uchun shaxsiy kabinet\n\n"
-                "📩 Loyiha yaratish uchun Direct (DM) ga yozing!"
+                "🖥 Matrix uslubidagi dasturchi muhiti va foydali vositalar! ⚡️\n\n"
+                "Kod yozishni zavqli jarayonga aylantiruvchi yechimlar:\n"
+                "✅ Kuchli terminal emulyatorlari va shriftlar\n"
+                "✅ Tezkor navigatsiya va klaviatura kombinatsiyalari\n"
+                "✅ Ochiq kodli zamonaviy IT asboblari\n\n"
+                "🚀 Ko'proq IT sirlari: @coder_bahrom"
             ),
         ],
         "caption": (
-            "🛍 Do'koningiz savdosini 24/7 to'xtovsiz ishlaydigan Onlayn Do'kon bilan oshiring! ✨\n\n"
-            "Mijozlar mahsulotlaringizni qulay katalogda ko'rib, darhol xarid qilishlari uchun zamonaviy yechim:\n"
-            "✅ Barcha telefon va kompyuterlarga moslashuvchan dizayn\n"
-            "✅ Click / Payme to'lov tizimlari va savatcha funksiyasi\n"
-            "✅ Buyurtmalarni Telegram orqali tezkor qabul qilish\n\n"
-            "📈 Savdoingizni avtomatlashtirish vaqti keldi!\n"
-            "📩 Zakaz berish uchun Direct (DM) ga «DOKON» yoki «ZAKAZ» deb yozing!"
+            "✨ Har bir dasturchining noutbukida bo'lishi kerak bo'lgan super vositalar! 💻🖤\n\n"
+            "Ish muhitini (workflow) maksimal qulay va chiroyli qilish sirlari:\n"
+            "✅ Dark aesthetic kod muhiti va mavzular\n"
+            "✅ Foydali VS Code va terminal plaginlari\n"
+            "✅ Ish unumdorligini (Productivity) oshiruvchi vositalar\n\n"
+            "🔥 Eng so'nggi IT trendlar uchun bizga qo'shiling: @coder_bahrom"
         ),
-        "hashtags": ["internetdokon", "saytyaratish", "biznesuz", "tadbirkor", "savdo"],
+        "hashtags": ["developertools", "codingsetup", "dasturchi", "ituz", "coder", "programmer"],
     },
     {
         "time": "20:30",
         "label": "🌙 Kechki Rek #2 (20:30)",
-        "niche": "Telegram Bot va Biznes Avtomatlashtirish",
+        "niche": "Linux & Axborot Xavfsizligi Vositalari",
         "search_tags": [
-            "pythonprogramming", "softwaredeveloper", "backenddeveloper", "codinganimation",
-            "devcommunity", "automation", "techtrends", "programmerlife", "codinglife",
-            "telegrambot", "webdeveloper", "fullstack",
+            "kalilinux", "linux", "cybersecurity", "ethicalhacker", "infosec", "securitytools",
+            "cyberdefense", "techtricks", "whitehat", "hackerlife",
         ],
         "captions": [
             (
-                "🤖 Mijozlardan 24/7 zakaz qabul qiluvchi Zamonaviy Sayt va Telegram Bot! ⚡\n\n"
-                "Kod qatorlaridan — tayyor daromad keltiruvchi biznes tizimgacha:\n"
-                "✅ Restoran, do'kon va kompaniyalar uchun Maxsus Telegram Botlar\n"
-                "✅ Telegram Mini-App (WebApp) onlayn katalog va buyurtma tizimi\n"
-                "✅ Mijozlar bazasi va avtomat hisobotlar\n\n"
-                "💼 Biznesingiz uchun individual loyiha kerakmi?\n"
-                "📩 Hoziroq Direct (DM) ga «ZAKAZ» deb yozing — bepul maslahat beramiz!"
+                "🛡 Linux va Axborot Xavfsizligi (Ethical Hacking) vositalari! ⚡️💻\n\n"
+                "Xavfsizlik mutaxassislari va kiberxavfsizlikka qiziquvchilar uchun ochiq kodli vositalar:\n"
+                "✅ Tarmoq tahlili va zaifliklarni aniqlash\n"
+                "✅ Linux tizimlarida xavfsizlikni kuchaytirish\n"
+                "✅ Ochiq manbali kiberhimoya vositalari\n\n"
+                "⚠️ Ma'lumotlar faqat o'quv va himoyalanish maqsadida taqdim etiladi.\n"
+                "Obuna bo'ling: @coder_bahrom"
             ),
             (
-                "⚡️ Xodimlarsiz 24/7 ishlovchi aqlli Telegram Bot va Mini-App! 🚀\n\n"
-                "Mijozlaringiz bilan avtomatik muloqot va tezkor savdo tizimi:\n"
-                "✅ Telegram ichida ochiluvchi to'liq vizual katalog (Mini App)\n"
-                "✅ Click, Payme va Uzum to'lovlari\n"
-                "✅ Buyurtmalarni avtomatik tarzda kuryer yoki omborga yo'naltirish\n\n"
-                "📩 Bot yaratish uchun Direct (DM) ga «BOT» deb yozing!"
-            ),
-            (
-                "📈 Biznes jarayonlarini avtomatlashtirib, vaqtingiz va pulingizni tejang! 💻\n\n"
-                "Muntazam qilinadigan takroriy ishlarni botlarga topshiring:\n"
-                "✅ Mijozlar bazasi (CRM) va avtomatik eslatmalar\n"
-                "✅ Xodimlar va filiallar faoliyatini boshqarish paneli\n"
-                "✅ Excel hisobotlar va tahlillar bir tugmada\n\n"
-                "💼 O'z tizimingizni yarating: Direct ga yozing!"
-            ),
-            (
-                "🎯 Telegram Mini-App (WebApp) — zamonaviy biznesning eng kuchli quroli! 🔥\n\n"
-                "Ilova yuklab olishga hojat yo'q, Telegram ichida 1 soniyada ochiladi:\n"
-                "✅ Ultra-zamonaviy interfeys va qulay buyurtma\n"
-                "✅ Har bir mijoz uchun shaxsiy bonuslar va ballar\n"
-                "✅ Doimiy mijozlar sonini keskin oshirish imkoniyati\n\n"
-                "📩 Loyihangizni boshlash uchun Direct ga «WEBAPP» deb yozing!"
+                "🔒 Tizimni xakerlardan himoya qilish uchun qaysi vositalar kerak? 🛡⚡️\n\n"
+                "Ochiq kodli eng mashhur xavfsizlik skriptlari va vositalari:\n"
+                "✅ Kali Linux va ochiq terminal asboblari\n"
+                "✅ Zaif nuqtalarni topish va himoyalash\n"
+                "✅ Kiberxavfsizlik bo'yicha amaliy bilimlar\n\n"
+                "🚀 Kiberolam va IT yangiliklari: @coder_bahrom"
             ),
         ],
         "caption": (
-            "🤖 Mijozlardan 24/7 zakaz qabul qiluvchi Zamonaviy Sayt va Telegram Bot! ⚡\n\n"
-            "Kod qatorlaridan — tayyor daromad keltiruvchi biznes tizimgacha:\n"
-            "✅ Restoran, do'kon va kompaniyalar uchun Maxsus Telegram Botlar\n"
-            "✅ Telegram Mini-App (WebApp) onlayn katalog va buyurtma tizimi\n"
-            "✅ Mijozlar bazasi va avtomat hisobotlar\n\n"
-            "💼 Biznesingiz uchun individual loyiha kerakmi?\n"
-            "📩 Hoziroq Direct (DM) ga «ZAKAZ» deb yozing — bepul maslahat beramiz!"
+            "🛡 Linux va Axborot Xavfsizligi (Ethical Hacking) vositalari! ⚡️💻\n\n"
+            "Xavfsizlik mutaxassislari va kiberxavfsizlikka qiziquvchilar uchun ochiq kodli vositalar:\n"
+            "✅ Tarmoq tahlili va zaifliklarni aniqlash\n"
+            "✅ Linux tizimlarida xavfsizlikni kuchaytirish\n"
+            "✅ Ochiq manbali kiberhimoya vositalari\n\n"
+            "⚠️ Ma'lumotlar faqat o'quv va himoyalanish maqsadida taqdim etiladi.\n"
+            "Obuna bo'ling: @coder_bahrom"
         ),
-        "hashtags": ["telegrambot", "saytyaratish", "biznesuz", "tadbirkor", "dasturchi"],
+        "hashtags": ["cybersecurity", "linux", "kalilinux", "infosec", "dasturlash", "ituz", "xavfsizlik"],
     },
 ]
 
@@ -421,6 +382,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                         and code not in existing_codes
                         and owner_pk != my_uid
                         and not any(abs(ed - dur) < 0.35 for ed in existing_durations)
+                        and not is_unwanted_content(m)
                     ):
                         candidates.append(m)
             except Exception as exc:
@@ -442,6 +404,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                         and code not in existing_codes
                         and owner_pk != my_uid
                         and not any(abs(ed - dur) < 0.35 for ed in existing_durations)
+                        and not is_unwanted_content(m)
                     ):
                         candidates.append(m)
             except Exception:
@@ -490,12 +453,12 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             top_box = [90, 370, 990, 525]
             odraw.rounded_rectangle(top_box, radius=20, fill=(12, 15, 24, 210), outline=(0, 220, 255, 230), width=3)
             odraw.text((130, 395), spec["niche"][:32].upper(), font=font_title, fill=(255, 255, 255))
-            odraw.text((145, 460), "Individual dizayn va tezkor dasturlash", font=font_sub, fill=(0, 230, 255))
+            odraw.text((145, 460), "GitHub & Dev Skriptlar | @coder_bahrom", font=font_sub, fill=(0, 230, 255))
 
             # Bottom Uzbek CTA (sleek golden pill badge)
             bot_box = [90, 1675, 990, 1825]
             odraw.rounded_rectangle(bot_box, radius=20, fill=(12, 15, 24, 210), outline=(255, 195, 45, 230), width=3)
-            odraw.text((140, 1698), "Buyurtma berish uchun Direct ga yozing", font=font_cta, fill=(255, 220, 90))
+            odraw.text((140, 1698), "Foydali skriptlar va IT vositalar", font=font_cta, fill=(255, 220, 90))
             odraw.text((380, 1752), "@coder_bahrom", font=font_brand, fill=(255, 255, 255))
 
             overlay_img.save(overlay_path)
