@@ -149,9 +149,9 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
             g1 = cv2.cvtColor(cv2.resize(f1, (320, 180)), cv2.COLOR_BGR2GRAY)
             g2 = cv2.cvtColor(cv2.resize(f2, (320, 180)), cv2.COLOR_BGR2GRAY)
             diff = float(np.mean(cv2.absdiff(g1, g2)))
-            if diff < 10.0:
+            if diff < 1.5:
                 cap.release()
-                return False, f"static slide/low motion graphic (diff={diff:.1f} < 10.0)"
+                return False, f"static slide/low motion graphic (diff={diff:.1f} < 1.5)"
 
             # Check for letterbox black padding bars on top or bottom
             gray1 = cv2.cvtColor(f1, cv2.COLOR_BGR2GRAY)
