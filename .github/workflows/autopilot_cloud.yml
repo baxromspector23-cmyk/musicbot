@@ -21,7 +21,7 @@ jobs:
   autopilot:
     permissions:
       contents: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -35,10 +35,8 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Setup FFmpeg
-        run: |
-          which ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
-          ffmpeg -version
+      - name: Verify FFmpeg
+        run: ffmpeg -version
 
       - name: Install Python dependencies
         run: |
