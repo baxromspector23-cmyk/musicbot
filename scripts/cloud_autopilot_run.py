@@ -153,7 +153,7 @@ async def main() -> None:
         log.info("Cloud check-only mode succeeded!")
         return
 
-    # Guard against duplicate posting if another worker (PC or Render) already posted within last 80 minutes
+    # Guard against duplicate posting in the same hour
     now_utc = datetime.now(timezone.utc)
     _now_l = now_utc.astimezone(_TZ)
     is_report_time = MARATHON_END <= _now_l < MARATHON_END + timedelta(minutes=59)
@@ -163,25 +163,27 @@ async def main() -> None:
         if taken_at is not None:
             if taken_at.tzinfo is None:
                 taken_at = taken_at.replace(tzinfo=timezone.utc)
+            taken_local = taken_at.astimezone(_TZ)
             age_minutes = (now_utc - taken_at).total_seconds() / 60.0
-            log.info("Latest Instagram Reel (%s) was posted %.1f minutes ago", latest["code"], age_minutes)
-            if age_minutes < 20:
-                log.info("A Reel was already posted %.1f min ago (<20 min); skipping duplicate cloud post.", age_minutes)
+            log.info("Latest Instagram Reel (%s) was posted %.1f minutes ago (%s)", latest["code"], age_minutes, taken_local.strftime("%H:%M"))
+            if (taken_local.date() == _now_l.date() and taken_local.hour == _now_l.hour) or age_minutes < 20:
+                log.info("Already posted in hour %02d:00 (%.1f min ago); skipping duplicate.", _now_l.hour, age_minutes)
                 return
 
     slot_idx = pick_slot_index_for_now()
     tz = ZoneInfo(config.TZ)
     now_local = datetime.now(timezone.utc).astimezone(tz)
 
+    if MARATHON_START <= now_local < MARATHON_END:
+        slot_idx = now_local.hour % len(autopilot.DAILY_SLOTS_SPEC)
+        log.info("24h marathon: hourly post #%d (slot %d)", now_local.hour + 1, slot_idx)
+
     if not force_post:
         # Final stats report right after the marathon ends
         if now_local >= MARATHON_END and now_local < MARATHON_END + timedelta(minutes=59):
             await send_marathon_report(st)
             return
-        if MARATHON_START <= now_local < MARATHON_END:
-            slot_idx = now_local.hour % len(autopilot.DAILY_SLOTS_SPEC)
-            log.info("24h marathon: hourly post #%d (slot %d)", now_local.hour + 1, slot_idx)
-        elif now_local.hour not in REGULAR_HOURS:
+        if not (MARATHON_START <= now_local < MARATHON_END) and now_local.hour not in REGULAR_HOURS:
             log.info("Not a posting hour (%02d:00); skipping.", now_local.hour)
             return
 

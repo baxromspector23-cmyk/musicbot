@@ -6,7 +6,7 @@ on:
     # (2026-10-30 00:00 -> 2026-10-31 00:00 Tashkent) it posts every hour,
     # at 2026-10-31 00:xx it sends the Telegram stats report,
     # otherwise it only posts at the regular 5 daily slots.
-    - cron: "0 * * * *"
+    - cron: "3,18,33,48 * * * *"
   push:
     branches:
       - trigger-now
@@ -55,7 +55,7 @@ jobs:
           if [ "${{ github.event.inputs.mode }}" = "check-only" ]; then
             python -m scripts.cloud_autopilot_run --check-only
           elif [ "${{ github.ref_name }}" = "trigger-now" ]; then
-            python -m scripts.cloud_autopilot_run --force --slot 1
+            python -m scripts.cloud_autopilot_run --force
           else
             python -m scripts.cloud_autopilot_run
           fi
