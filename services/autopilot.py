@@ -46,6 +46,10 @@ INDIAN_AND_UNWANTED_KEYWORDS: set[str] = {
     "roadmap", "interview", "salary", "placement", "college", "student", "resume",
     "coach", "mentor", "internship", "hiring", "course", "degree", "lecture", "tutorial",
     "explaining", "explain", "listen", "tips",
+    # Abstract motion design / 3D renders / non-coding art (NO abstract animations like ASTROLAB)
+    "astrolabs", "astrolab", "pixelart", "retrofuture", "scifiart", "cyberpunkart", "blender3d",
+    "aftereffects", "motiongraphics", "motiondesign", "cinema4d", "vfx", "render", "3danimation",
+    "lofi", "aestheticbeats", "chillvibes", "wallpaper", "poster", "graphicdesign",
 }
 
 
@@ -182,7 +186,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🌅 Ertalabki Rek #1 (09:00)",
         "niche": "GitHub Open-Source & Dasturchi Skriptlari",
         "search_tags": [
-            "terminalaesthetic", "unixporn", "neovim", "archlinux", "dotfiles", "commandline", "hyprland",
+            "github", "codinglife", "pythoncode", "developer", "opensource",
         ],
         "captions": [
             (
@@ -221,14 +225,14 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
             "🚀 Profilimizda har kuni eng zo'r IT xaklar va dasturlash sirlari!\n"
             "Obuna bo'ling: @coder_bahrom"
         ),
-        "hashtags": ["terminalaesthetic", "dasturlash", "ituz", "coder", "dasturchi", "opensource", "neovim"],
+        "hashtags": ["github", "dasturlash", "ituz", "coder", "dasturchi", "opensource", "codinglife"],
     },
     {
         "time": "11:00",
         "label": "☀️ Ertalabki Rek #2 (11:00)",
         "niche": "Terminal & CLI Xaklari / Tezkor Skriptlar",
         "search_tags": [
-            "terminalaesthetic", "clitools", "linuxcommands", "neovim", "commandline", "bash", "hyprland", "codingsetup",
+            "linuxcommands", "linux", "terminalaesthetic", "bashscripting", "clitools",
         ],
         "captions": [
             (
@@ -271,7 +275,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🔥 Kunduzgi Rek (12:00)",
         "niche": "Python Avtomatlashtirish & Cyber Skriptlar",
         "search_tags": [
-            "terminalaesthetic", "pythoncode", "scripting", "networksecurity", "cybersecuritytools", "infosec", "automation",
+            "pythonprogramming", "pythoncode", "pythonscripts", "automationscript", "coding",
         ],
         "captions": [
             (
@@ -304,9 +308,9 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
     {
         "time": "18:30",
         "label": "🌆 Kechki Rek #1 (18:30)",
-        "niche": "Top Dasturchi Vositalari & Dark Aesthetic Setup",
+        "niche": "Top Dasturchi Vositalari & Coding Setup",
         "search_tags": [
-            "codingsetup", "darkaesthetic", "desksetup", "mechanicalkeyboard", "workspacegoals", "cleanworkspace", "darkmode",
+            "github", "codinglife", "pythoncode", "developer", "clitools",
         ],
         "captions": [
             (
@@ -341,7 +345,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🌙 Kechki Rek #2 (20:30)",
         "niche": "Linux & Axborot Xavfsizligi Vositalari",
         "search_tags": [
-            "kalilinux", "terminalaesthetic", "unixporn", "archlinux", "securitytools", "cyberdefense",
+            "kalilinux", "ethicalhacking", "cybersecurity", "securitytools", "infosec",
         ],
         "captions": [
             (
@@ -476,15 +480,18 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         for tag in tags_to_try:
             # Query top
             try:
-                medias = cl.hashtag_medias_top_v1(tag, amount=20)
+                medias = cl.hashtag_medias_top_v1(tag, amount=25)
                 for m in medias:
                     code = str(getattr(m, "code", "") or "")
                     dur = float(getattr(m, "video_duration", 0) or 0)
                     mtype = int(getattr(m, "media_type", 0) or 0)
                     owner_pk = str(getattr(getattr(m, "user", None), "pk", "") or "")
+                    plays = int(getattr(m, "play_count", 0) or 0)
+                    likes = int(getattr(m, "like_count", 0) or 0)
                     if (
                         mtype == 2
-                        and 7.0 <= dur <= 19.5
+                        and 8.0 <= dur <= 30.0
+                        and (plays >= 500 or likes >= 25)
                         and code
                         and code not in used_codes
                         and code not in existing_codes
@@ -504,9 +511,12 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                     dur = float(getattr(m, "video_duration", 0) or 0)
                     mtype = int(getattr(m, "media_type", 0) or 0)
                     owner_pk = str(getattr(getattr(m, "user", None), "pk", "") or "")
+                    plays = int(getattr(m, "play_count", 0) or 0)
+                    likes = int(getattr(m, "like_count", 0) or 0)
                     if (
                         mtype == 2
-                        and 7.0 <= dur <= 19.5
+                        and 8.0 <= dur <= 30.0
+                        and (plays >= 500 or likes >= 25)
                         and code
                         and code not in used_codes
                         and code not in existing_codes
@@ -518,7 +528,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             except Exception:
                 pass
 
-            if len(candidates) >= 12:
+            if len(candidates) >= 20:
                 break
 
         if not candidates:
@@ -532,23 +542,22 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                 unique_cands[c] = m
         cands_list = list(unique_cands.values())
 
-        # Sort by engagement (views + likes * 10)
+        # Sort by engagement (views + likes * 10) in STRICT descending order (top viral first!)
         cands_list.sort(
             key=lambda x: int(getattr(x, "play_count", 0) or 0) + int(getattr(x, "like_count", 0) or 0) * 10,
             reverse=True,
         )
 
-        # Select candidates and verify WITH OPENCV + FFPROBE: NO HUMAN FACES, MUST HAVE SOUND
-        shuffled_pool = list(cands_list[:min(30, len(cands_list))])
-        random.shuffle(shuffled_pool)
-
         chosen = None
         dl_path = None
         code = ""
 
-        for candidate in shuffled_pool:
+        # Strictly verify in order of virality (top viral hits first! DO NOT SHUFFLE!)
+        for candidate in cands_list[:30]:
             cand_code = str(candidate.code)
-            log.info("Downloading candidate %s to verify...", cand_code)
+            plays = getattr(candidate, "play_count", 0)
+            likes = getattr(candidate, "like_count", 0)
+            log.info("Downloading viral candidate %s (plays=%s, likes=%s) to verify...", cand_code, plays, likes)
             cand_dl = Path(cl.video_download(candidate.pk, folder=temp_dir))
 
             # 1. Sound check: Video MUST have original audio / music
