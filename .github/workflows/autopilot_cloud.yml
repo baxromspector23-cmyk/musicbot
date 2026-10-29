@@ -7,9 +7,6 @@ on:
     # at 2026-10-31 00:xx it sends the Telegram stats report,
     # otherwise it only posts at the regular 5 daily slots.
     - cron: "3,18,33,48 * * * *"
-  push:
-    branches:
-      - trigger-now
   workflow_dispatch:
     inputs:
       mode:
