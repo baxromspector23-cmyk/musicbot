@@ -449,7 +449,9 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         code = str(chosen.code)
         dl_path = Path(cl.video_download(chosen.pk, folder=temp_dir))
         norm_path = temp_dir / f"norm_{code}.mp4"
-        overlay_path = temp_dir / f"overlay_{code}.png"
+        wm_path = temp_dir / f"wm_{code}.png"
+        hook_path = temp_dir / f"hook_{code}.png"
+        cta_path = temp_dir / f"cta_{code}.png"
 
         # Draw clean, sleek Uzbek top & bottom banners (Visual only, NO AI voiceover - pure music preserved)
         try:
@@ -475,56 +477,79 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             font_wm = _font(26, True)
             font_credit = _font(20)
 
-            overlay_img = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
-            odraw = ImageDraw.Draw(overlay_img)
+            W, H = 1080, 1920
+            hook_map = [
+                ("HECH KIM BILMAYDIGAN", "GITHUB SIRLARI"),
+                ("ISHNI 5X TEZLASHTIRUVCHI", "TERMINAL XAKLARI"),
+                ("5 SONIYADA ISHLAYDIGAN", "PYTHON SKRIPT"),
+                ("HAR BIR DASTURCHIGA", "KERAKLI VOSITA"),
+                ("LINUX XAVFSIZLIK", "VOSITALARI"),
+            ]
+            h_small, h_big = hook_map[slot_index % len(hook_map)]
+            font_hs = _font(34, True)
+            font_hb = _font(58, True)
 
-            # Top Uzbek banner (sleek dark glass effect with viral hook)
-            top_box = [90, 370, 990, 525]
-            odraw.rounded_rectangle(top_box, radius=20, fill=(12, 15, 24, 215), outline=(0, 220, 255, 230), width=3)
-            odraw.text((540, 420), "DASTURCHILAR UCHUN TOP SKRIPT", font=font_title, fill=(255, 255, 255), anchor="mm")
-            odraw.text((540, 478), "Tezkor Terminal & CLI Xaklari | @coder_bahrom", font=font_sub, fill=(0, 230, 255), anchor="mm")
-
-            # Bottom Uzbek CTA (high-converting comment trigger badge)
-            bot_box = [90, 1675, 990, 1825]
-            odraw.rounded_rectangle(bot_box, radius=20, fill=(12, 15, 24, 220), outline=(255, 195, 45, 230), width=3)
-            odraw.text((540, 1720), "Kommentga \u00abKOD\u00bb deb yozing!", font=font_cta, fill=(255, 220, 90), anchor="mm")
-            odraw.text((540, 1778), "Direct'ga skriptni yuboramiz | @coder_bahrom", font=font_brand, fill=(255, 255, 255), anchor="mm")
-
-            # Small Instagram logo + @coder_bahrom watermark (top-left corner)
-            lx, ly, ls = 40, 230, 46
-            odraw.rounded_rectangle([lx - 8, ly - 8, lx + ls + 250, ly + ls + 8], radius=16, fill=(0, 0, 0, 110))
-            odraw.rounded_rectangle([lx, ly, lx + ls, ly + ls], radius=13, outline=(255, 255, 255, 235), width=4)
-            odraw.ellipse([lx + 12, ly + 12, lx + ls - 12, ly + ls - 12], outline=(255, 255, 255, 235), width=4)
-            odraw.ellipse([lx + ls - 13, ly + 7, lx + ls - 7, ly + 13], fill=(255, 255, 255, 235))
-            odraw.text((lx + ls + 14, ly + ls // 2), "@coder_bahrom", font=font_wm, fill=(255, 255, 255, 240), anchor="lm")
-
-            # Original author credit (top-right corner, small)
+            # Layer 1: watermark (whole video) - small IG logo + @coder_bahrom, author credit
+            wm = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            d = ImageDraw.Draw(wm)
+            lx, ly, ls = 44, 232, 40
+            name_w = d.textlength("@coder_bahrom", font=font_wm)
+            d.rounded_rectangle([lx - 10, ly - 8, lx + ls + 22 + name_w, ly + ls + 8], radius=24, fill=(0, 0, 0, 90))
+            d.rounded_rectangle([lx, ly, lx + ls, ly + ls], radius=11, outline=(255, 255, 255, 230), width=3)
+            d.ellipse([lx + 11, ly + 11, lx + ls - 11, ly + ls - 11], outline=(255, 255, 255, 230), width=3)
+            d.ellipse([lx + ls - 11, ly + 6, lx + ls - 6, ly + 11], fill=(255, 255, 255, 230))
+            d.text((lx + ls + 12, ly + ls // 2), "@coder_bahrom", font=font_wm, fill=(255, 255, 255, 235), anchor="lm")
             author = str(getattr(getattr(chosen, "user", None), "username", "") or "").strip()
             if author:
                 credit = f"video: @{author}"
-                tw = odraw.textlength(credit, font=font_credit)
-                cx2 = 1040
-                odraw.rounded_rectangle([cx2 - tw - 20, 238, cx2, 270], radius=12, fill=(0, 0, 0, 110))
-                odraw.text((cx2 - 10, 254), credit, font=font_credit, fill=(235, 235, 235, 230), anchor="rm")
+                tw = d.textlength(credit, font=font_credit)
+                d.rounded_rectangle([W - 44 - tw - 24, 238, W - 44, 274], radius=18, fill=(0, 0, 0, 90))
+                d.text((W - 44 - 12, 256), credit, font=font_credit, fill=(230, 230, 230, 220), anchor="rm")
+            wm.save(wm_path)
 
-            overlay_img.save(overlay_path)
+            # Layer 2: hook (first 2.5s) - frameless glass pill
+            hk = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            d = ImageDraw.Draw(hk)
+            bw = max(d.textlength(h_small, font=font_hs), d.textlength(h_big, font=font_hb)) + 90
+            d.rounded_rectangle([(W - bw) / 2, 560, (W + bw) / 2, 760], radius=36, fill=(10, 12, 20, 175))
+            d.text((W / 2, 615), h_small, font=font_hs, fill=(255, 255, 255, 255), anchor="mm")
+            d.text((W / 2, 692), h_big, font=font_hb, fill=(0, 225, 255, 255), anchor="mm")
+            hk.save(hook_path)
+
+            # Layer 3: CTA (last 3s)
+            ct = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            d = ImageDraw.Draw(ct)
+            l1, l2 = "Kommentga \u00abKOD\u00bb deb yozing", "skriptni Direct'ga yuboramiz"
+            bw = max(d.textlength(l1, font=font_cta), d.textlength(l2, font=font_brand)) + 90
+            d.rounded_rectangle([(W - bw) / 2, 1300, (W + bw) / 2, 1440], radius=36, fill=(10, 12, 20, 185))
+            d.text((W / 2, 1345), l1, font=font_cta, fill=(255, 210, 70, 255), anchor="mm")
+            d.text((W / 2, 1400), l2, font=font_brand, fill=(255, 255, 255, 240), anchor="mm")
+            ct.save(cta_path)
         except Exception as exc:
             log.warning("overlay banner warning: %s", exc)
 
         # Composite video: keep original viral music track at full 100% volume, NO AI VOICEOVER
-        if overlay_path.exists():
+        vdur = min(float(getattr(chosen, "video_duration", 0) or 28.0), 28.0)
+        cta_start = max(vdur - 3.0, 3.0)
+        if wm_path.exists() and hook_path.exists() and cta_path.exists():
             ff_args = [
                 "ffmpeg", "-y", "-v", "quiet",
                 "-i", str(dl_path),
-                "-i", str(overlay_path),
+                "-loop", "1", "-t", f"{vdur:.2f}", "-i", str(wm_path),
+                "-loop", "1", "-t", f"{vdur:.2f}", "-i", str(hook_path),
+                "-loop", "1", "-t", f"{vdur:.2f}", "-i", str(cta_path),
                 "-filter_complex",
                 "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30[base];"
-                "[base][1:v]overlay=0:0[vout]",
+                "[2:v]format=rgba,fade=t=in:st=0:d=0.25:alpha=1,fade=t=out:st=2.2:d=0.4:alpha=1[hk];"
+                f"[3:v]format=rgba,fade=t=in:st={cta_start:.2f}:d=0.4:alpha=1[ct];"
+                "[base][1:v]overlay=0:0:shortest=1[v1];"
+                "[v1][hk]overlay=0:0:shortest=1[v2];"
+                "[v2][ct]overlay=0:0:shortest=1[vout]",
                 "-map", "[vout]",
                 "-map", "0:a?",
                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "192k",
-                "-t", "28",
+                "-t", f"{vdur:.2f}",
                 str(norm_path),
             ]
         else:
@@ -540,7 +565,8 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
 
         subprocess.run(ff_args, check=True, timeout=180)
         dl_path.unlink(missing_ok=True)
-        overlay_path.unlink(missing_ok=True)
+        for p in (wm_path, hook_path, cta_path):
+            p.unlink(missing_ok=True)
 
         caption_pool = spec.get("captions", [spec.get("caption", "")])
         chosen_caption = random.choice(caption_pool)
