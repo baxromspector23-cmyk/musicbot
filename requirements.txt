@@ -11,3 +11,4 @@ tzdata
 instagrapi>=2.1
 moviepy>=1.0.3
 pillow>=10.0
+opencv-python-headless>=4.8,<5

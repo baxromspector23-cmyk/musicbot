@@ -33,18 +33,22 @@ INDIAN_AND_UNWANTED_KEYWORDS: set[str] = {
     "hindi", "hinglish", "bhai", "yaar", "karo", "hai", "kare", "kaise", "seekho", "dost",
     "karna", "samjho", "dekho", "dekhiye", "chahiye", "rakho", "wala", "wali", "mera", "meri",
     "apna", "apni", "paisa", "rupee", "rupees", "crore", "lakh", "roopya", "joblagi",
-    "shuru", "kijiye", "padho", "bolo", "namaste", "namaskar",
+    "shuru", "kijiye", "padho", "bolo", "namaste", "namaskar", "bhaiya", "didi", "sir", "bhau",
     # Typical Indian corporate tags/memes
     "tcs", "infosys", "wipro", "cognizant", "accentureindia", "hcl",
     # Indian names common in handles/usernames/full names
     "singh", "sharma", "patel", "kumar", "gupta", "verma", "yadav", "choudhary", "reddy",
     "nair", "joshi", "mehta", "shah", "das", "roy", "mishra", "pandey", "tiwari", "babu",
     "chaurasia", "deshmukh", "shukla", "agarwal", "bhat", "chaudhary", "mukherjee",
+    # Talking-head / influencer / course spam indicators (NO human talking heads allowed)
+    "roadmap", "interview", "salary", "placement", "college", "student", "resume",
+    "coach", "mentor", "internship", "hiring", "course", "degree", "lecture", "tutorial",
+    "explaining", "explain", "listen", "tips",
 }
 
 
 def is_unwanted_content(media: Any) -> bool:
-    """Return True if media has Hindi/Devanagari text, Indian keywords, or Indian creator handles."""
+    """Return True if media has Hindi/Devanagari text, Indian keywords, or talking-head markers."""
     import re
     caption = str(getattr(media, "caption_text", "") or "").lower()
 
@@ -70,6 +74,74 @@ def is_unwanted_content(media: Any) -> bool:
     return False
 
 
+def has_human_face_or_person(video_path: Path) -> tuple[bool, str]:
+    """Inspect video frames with OpenCV Haar Cascades and YCrCb skin-tone detector.
+    Returns (True, reason) if any human face or person is detected, (False, '') if 100% faceless screen/setup.
+    """
+    try:
+        import cv2
+        import numpy as np
+
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            return False, ""
+
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        if total_frames <= 0:
+            cap.release()
+            return False, ""
+
+        # Load OpenCV Haar cascade classifiers
+        cascades = []
+        for name in ("haarcascade_frontalface_default.xml", "haarcascade_profileface.xml"):
+            p = getattr(cv2, "data", None) and getattr(cv2.data, "haarcascades", "") + name
+            if p and Path(p).exists():
+                c = cv2.CascadeClassifier(p)
+                if not c.empty():
+                    cascades.append((name, c))
+
+        # Sample 8 evenly spaced points across the video
+        pts = [0.10, 0.22, 0.35, 0.50, 0.65, 0.78, 0.88, 0.96]
+        for pt in pts:
+            f_idx = int(pt * total_frames)
+            cap.set(cv2.CAP_PROP_POS_FRAMES, f_idx)
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                continue
+
+            h, w = frame.shape[:2]
+            if h < 100 or w < 100:
+                continue
+
+            scale = 480.0 / max(h, w)
+            small = cv2.resize(frame, (int(w * scale), int(h * scale)))
+            gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+
+            # 1. Cascade face detection
+            for c_name, casc in cascades:
+                faces = casc.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=3, minSize=(28, 28))
+                if len(faces) > 0:
+                    cap.release()
+                    return True, f"human face detected ({c_name} at {int(pt*100)}%)"
+
+            # 2. Skin-tone detection in center region (talking heads occupy center)
+            sh, sw = small.shape[:2]
+            center = small[int(sh * 0.12):int(sh * 0.88), int(sw * 0.15):int(sw * 0.85)]
+            ycrcb = cv2.cvtColor(center, cv2.COLOR_BGR2YCrCb)
+            # Standard human skin range in YCrCb: 133 <= Cr <= 173 and 77 <= Cb <= 127
+            skin_mask = cv2.inRange(ycrcb, np.array([0, 133, 77]), np.array([255, 173, 127]))
+            skin_ratio = float(np.count_nonzero(skin_mask)) / float(skin_mask.shape[0] * skin_mask.shape[1])
+            if skin_ratio > 0.11:  # >11% skin in center frame = person talking on camera
+                cap.release()
+                return True, f"human skin/body detected ({skin_ratio*100:.1f}% at {int(pt*100)}%)"
+
+        cap.release()
+        return False, ""
+    except Exception as exc:
+        log.warning("face detection exception (pass through): %s", exc)
+        return False, ""
+
+
 # 5 daily optimal Rek slots in Asia/Tashkent (Special 2-Day GitHub & Hack Scripts Edition):
 DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
     {
@@ -77,8 +149,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🌅 Ertalabki Rek #1 (09:00)",
         "niche": "GitHub Open-Source & Dasturchi Skriptlari",
         "search_tags": [
-            "github", "githubproject", "git", "opensource", "commandline", "terminal",
-            "bashscript", "zsh", "pythonscript", "terminalaesthetic", "developer", "codinglife",
+            "terminalaesthetic", "unixporn", "neovim", "archlinux", "dotfiles", "commandline", "hyprland",
         ],
         "captions": [
             (
@@ -117,15 +188,14 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
             "🚀 Profilimizda har kuni eng zo'r IT xaklar va dasturlash sirlari!\n"
             "Obuna bo'ling: @coder_bahrom"
         ),
-        "hashtags": ["github", "dasturlash", "ituz", "coder", "dasturchi", "opensource", "pythonscript"],
+        "hashtags": ["terminalaesthetic", "dasturlash", "ituz", "coder", "dasturchi", "opensource", "neovim"],
     },
     {
         "time": "11:00",
         "label": "☀️ Ertalabki Rek #2 (11:00)",
         "niche": "Terminal & CLI Xaklari / Tezkor Skriptlar",
         "search_tags": [
-            "terminal", "clitools", "linuxcommands", "neovim", "commandline", "bash",
-            "archlinux", "developerlife", "darkmode", "codingsetup", "ittools", "zsh",
+            "terminalaesthetic", "clitools", "linuxcommands", "neovim", "commandline", "bash", "hyprland", "codingsetup",
         ],
         "captions": [
             (
@@ -173,8 +243,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🔥 Kunduzgi Rek (12:00)",
         "niche": "Python Avtomatlashtirish & Cyber Skriptlar",
         "search_tags": [
-            "pythonscripts", "automation", "pythoncode", "scripting", "networksecurity",
-            "cybersecuritytools", "infosec", "codingdays", "ethicalhacking", "programming",
+            "terminalaesthetic", "pythoncode", "scripting", "networksecurity", "cybersecuritytools", "infosec", "automation",
         ],
         "captions": [
             (
@@ -209,8 +278,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🌆 Kechki Rek #1 (18:30)",
         "niche": "Top Dasturchi Vositalari & Dark Aesthetic Setup",
         "search_tags": [
-            "developertools", "programmerlife", "codingsetup", "darkaesthetic", "matrixcode",
-            "vscode", "devcommunity", "fullstack", "programminglife",
+            "codingsetup", "darkaesthetic", "desksetup", "mechanicalkeyboard", "workspacegoals", "cleanworkspace", "darkmode",
         ],
         "captions": [
             (
@@ -245,8 +313,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🌙 Kechki Rek #2 (20:30)",
         "niche": "Linux & Axborot Xavfsizligi Vositalari",
         "search_tags": [
-            "kalilinux", "linux", "cybersecurity", "ethicalhacker", "infosec", "securitytools",
-            "cyberdefense", "techtricks", "whitehat", "hackerlife",
+            "kalilinux", "terminalaesthetic", "unixporn", "archlinux", "securitytools", "cyberdefense",
         ],
         "captions": [
             (
@@ -443,11 +510,35 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             reverse=True,
         )
 
-        # Pick randomly from top 8 to guarantee viral quality while NEVER repeating the same video
-        top_pool = cands_list[:min(8, len(cands_list))]
-        chosen = random.choice(top_pool)
-        code = str(chosen.code)
-        dl_path = Path(cl.video_download(chosen.pk, folder=temp_dir))
+        # Select candidates and verify WITH OPENCV FACE DETECTOR: 100% NO HUMAN FACES ALLOWED
+        shuffled_pool = list(cands_list[:min(15, len(cands_list))])
+        random.shuffle(shuffled_pool)
+
+        chosen = None
+        dl_path = None
+        code = ""
+
+        for candidate in shuffled_pool:
+            cand_code = str(candidate.code)
+            log.info("Downloading candidate %s to verify NO HUMAN FACES...", cand_code)
+            cand_dl = Path(cl.video_download(candidate.pk, folder=temp_dir))
+            has_face, face_reason = has_human_face_or_person(cand_dl)
+            if has_face:
+                log.warning("REJECTED candidate %s: %s (NO HUMAN FACES allowed)", cand_code, face_reason)
+                cand_dl.unlink(missing_ok=True)
+                used_codes.add(cand_code)
+                continue
+
+            # Candidate passed face & person check!
+            log.info("APPROVED candidate %s: 100%% faceless terminal/screen/setup video!", cand_code)
+            chosen = candidate
+            code = cand_code
+            dl_path = cand_dl
+            break
+
+        if not chosen or not dl_path or not dl_path.exists():
+            raise RuntimeError("Topilgan barcha videolarda odam yuzi aniqlandi. Qayta qidiriladi.")
+
         norm_path = temp_dir / f"norm_{code}.mp4"
         wm_path = temp_dir / f"wm_{code}.png"
         hook_path = temp_dir / f"hook_{code}.png"
