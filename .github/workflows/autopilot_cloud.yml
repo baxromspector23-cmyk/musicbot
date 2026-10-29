@@ -21,7 +21,7 @@ jobs:
   autopilot:
     permissions:
       contents: write
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -35,8 +35,19 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Verify FFmpeg
-        run: ffmpeg -version
+      - name: Setup FFmpeg (fast cache)
+        continue-on-error: true
+        uses: federicocarboni/setup-ffmpeg@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Ensure FFmpeg
+        run: |
+          if ! command -v ffmpeg &> /dev/null; then
+            echo "Installing FFmpeg via apt-get..."
+            sudo apt-get update -qq && sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version
 
       - name: Install Python dependencies
         run: |
