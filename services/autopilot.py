@@ -50,6 +50,16 @@ INDIAN_AND_UNWANTED_KEYWORDS: set[str] = {
     "astrolabs", "astrolab", "pixelart", "retrofuture", "scifiart", "cyberpunkart", "blender3d",
     "aftereffects", "motiongraphics", "motiondesign", "cinema4d", "vfx", "render", "3danimation",
     "lofi", "aestheticbeats", "chillvibes", "wallpaper", "poster", "graphicdesign",
+    # Foreign language rejection (ONLY English, Uzbek, and Russian creators allowed)
+    # Spanish & Portuguese:
+    "para", "como", "hace", "anos", "sabes", "salir", "abriste", "voce", "nao", "com", "uma", "mais",
+    "pero", "cuando", "donde", "todos", "estoy", "hacer", "codigo", "programacion", "programador",
+    "programacao", "desarrollo", "desarrollador", "desenvolvedor", "lenguaje", "lenguajes", "aprende",
+    "aprenda", "descubre", "consejos", "herramientas", "trucos", "productivos", "iaproductivos",
+    # Turkish:
+    "nasil", "neden", "yazilim", "kodlama", "ogren", "gelistirici", "bilgisayar", "dersleri", "icin",
+    # Indonesian:
+    "belajar", "cara", "untuk", "kamu", "bisa", "yang",
 }
 
 
