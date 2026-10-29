@@ -200,11 +200,6 @@ async def main() -> None:
     norm_path = vid_info["path"]
     try:
         caption_text = vid_info.get("caption") or spec.get("caption", "")
-        if "KOD" not in caption_text:
-            caption_text += (
-                "\n\n👇 Siz qaysi biridan foydalanasiz? 1-mi yoki 2-mi? Kommentda yozing!\n"
-                "💬 Skript kerak bo'lsa kommentga «KOD» deb yozing, Direct'ga yuboramiz! 📥"
-            )
         full_caption = f"{caption_text}\n\n{' '.join('#' + t for t in spec['hashtags'])}"
         media_id, permalink = await ig_direct.upload_reel(norm_path, full_caption)
         log.info("Successfully published Cloud Autopilot Reel: %s", permalink)

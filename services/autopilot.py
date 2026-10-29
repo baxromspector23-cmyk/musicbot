@@ -39,7 +39,9 @@ INDIAN_AND_UNWANTED_KEYWORDS: set[str] = {
     # Indian names common in handles/usernames/full names
     "singh", "sharma", "patel", "kumar", "gupta", "verma", "yadav", "choudhary", "reddy",
     "nair", "joshi", "mehta", "shah", "das", "roy", "mishra", "pandey", "tiwari", "babu",
-    "chaurasia", "deshmukh", "shukla", "agarwal", "bhat", "chaudhary", "mukherjee",
+    "chaurasia", "deshmukh", "shukla", "agarwal", "bhat", "chaudhary", "mukherjee", "khan",
+    "kapoor", "malhotra", "jain", "bhatia", "dhar", "khatri", "rajasthan", "gujarat", "punjab",
+    "kerala", "tamilnadu", "karnataka", "maharashtra", "haryana", "bihar", "up", "bengal",
     # Talking-head / influencer / course spam indicators (NO human talking heads allowed)
     "roadmap", "interview", "salary", "placement", "college", "student", "resume",
     "coach", "mentor", "internship", "hiring", "course", "degree", "lecture", "tutorial",
@@ -48,30 +50,61 @@ INDIAN_AND_UNWANTED_KEYWORDS: set[str] = {
 
 
 def is_unwanted_content(media: Any) -> bool:
-    """Return True if media has Hindi/Devanagari text, Indian keywords, or talking-head markers."""
+    """Return True if media has Hindi/Indic text, Indian keywords, or talking-head markers."""
     import re
     caption = str(getattr(media, "caption_text", "") or "").lower()
 
-    # 1. Check Devanagari script (Hindi characters range: \u0900-\u097F)
-    for ch in caption:
-        if "\u0900" <= ch <= "\u097f":
-            return True
+    # Check Indic scripts (Devanagari, Bengali, Gurmukhi, Gujarati, Oriya, Tamil, Telugu, Kannada, Malayalam, Arabic/Urdu)
+    indic_ranges = [
+        ("\u0900", "\u097f"),  # Devanagari (Hindi, Marathi, Sanskrit)
+        ("\u0980", "\u09ff"),  # Bengali
+        ("\u0a00", "\u0a7f"),  # Gurmukhi (Punjabi)
+        ("\u0a80", "\u0aff"),  # Gujarati
+        ("\u0b00", "\u0b7f"),  # Oriya
+        ("\u0b80", "\u0bff"),  # Tamil
+        ("\u0c00", "\u0c7f"),  # Telugu
+        ("\u0c80", "\u0cff"),  # Kannada
+        ("\u0d00", "\u0d7f"),  # Malayalam
+        ("\u0600", "\u06ff"),  # Arabic / Urdu
+    ]
 
-    # 2. Check username and full_name
     user = getattr(media, "user", None)
     username = str(getattr(user, "username", "") or "").lower()
     full_name = str(getattr(user, "full_name", "") or "").lower()
+    check_text = f"{caption} {username} {full_name}"
 
-    for ch in f"{username} {full_name}":
-        if "\u0900" <= ch <= "\u097f":
-            return True
+    for start, end in indic_ranges:
+        for ch in check_text:
+            if start <= ch <= end:
+                return True
 
-    # 3. Check tokens for Indian keywords
-    tokens = set(re.findall(r"[a-z]+", f"{caption} {username} {full_name}"))
+    tokens = set(re.findall(r"[a-z]+", check_text))
     if tokens.intersection(INDIAN_AND_UNWANTED_KEYWORDS):
         return True
 
     return False
+
+
+def video_has_audio(video_path: Path) -> bool:
+    """Check if video file has at least one active audio stream using ffprobe."""
+    try:
+        res = subprocess.run(
+            [
+                "ffprobe", "-v", "error",
+                "-select_streams", "a:0",
+                "-show_entries", "stream=codec_type",
+                "-of", "default=noprint_wrappers=1:nokey=1",
+                str(video_path),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10,
+        )
+        return bool(res.stdout.strip())
+    except Exception as exc:
+        log.warning("Audio check probe error: %s", exc)
+        return False
 
 
 def has_human_face_or_person(video_path: Path) -> tuple[bool, str]:
@@ -204,7 +237,6 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
                 "✅ Ishni 10x tezlashtiruvchi CLI buyruqlar\n"
                 "✅ Tezkor navigatsiya va fayllarni boshqarish\n"
                 "✅ Zsh, Bash va Neovim ajoyib konfiguratsiyalari\n\n"
-                "💬 Ushbu skriptlar to'plami kerakmi? Kommentga «KOD» deb yozing, Direct'ga to'liq yuboramiz! 📥👇\n\n"
                 "🚀 Profilimizda har kuni eng zo'r IT sirlari! Obuna: @coder_bahrom"
             ),
             (
@@ -213,8 +245,6 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
                 "✅ Kuchli CLI qidiruv va ma'lumot tahlili\n"
                 "✅ Birgina buyruq bilan murakkab jarayonlarni boshqarish\n"
                 "✅ Linux, Mac va Windows uchun to'liq mos\n\n"
-                "👇 Siz qaysi biridan ko'proq foydalanasiz? Terminal-mi yoki Sichqoncha? Fikringizni kommentda yozing!\n"
-                "💬 Skript kerak bo'lsa kommentga «KOD» deb yozing, Direct'ga yuboramiz!\n\n"
                 "Kanalimiz: @coder_bahrom"
             ),
             (
@@ -223,7 +253,6 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
                 "✅ Zsh, Bash va CLI maxsus aliaslari\n"
                 "✅ Serverlarni 1 soniyada monitoring qilish\n"
                 "✅ Git va GitHub buyruqlarini avtomatlashtirish\n\n"
-                "💬 Skriptlarni olish uchun kommentga «KOD» deb yozing, Direct'ga jo'natamiz! 📥\n"
                 "💎 Do'stingizga ham yuboring, u ham vaqtini tejashni o'rgansin! Obuna: @coder_bahrom"
             ),
         ],
@@ -233,7 +262,6 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
             "✅ Ishni 10x tezlashtiruvchi CLI buyruqlar\n"
             "✅ Tezkor navigatsiya va fayllarni boshqarish\n"
             "✅ Zsh, Bash va Neovim ajoyib konfiguratsiyalari\n\n"
-            "💬 Ushbu skriptlar to'plami kerakmi? Kommentga «KOD» deb yozing, Direct'ga to'liq yuboramiz! 📥👇\n\n"
             "🚀 Profilimizda har kuni eng zo'r IT sirlari! Obuna: @coder_bahrom"
         ),
         "hashtags": ["terminal", "linux", "dasturchi", "bash", "codinglife", "ituz", "coder"],
@@ -510,8 +538,8 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             reverse=True,
         )
 
-        # Select candidates and verify WITH OPENCV FACE DETECTOR: 100% NO HUMAN FACES ALLOWED
-        shuffled_pool = list(cands_list[:min(15, len(cands_list))])
+        # Select candidates and verify WITH OPENCV + FFPROBE: NO HUMAN FACES, MUST HAVE SOUND
+        shuffled_pool = list(cands_list[:min(30, len(cands_list))])
         random.shuffle(shuffled_pool)
 
         chosen = None
@@ -520,8 +548,17 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
 
         for candidate in shuffled_pool:
             cand_code = str(candidate.code)
-            log.info("Downloading candidate %s to verify NO HUMAN FACES...", cand_code)
+            log.info("Downloading candidate %s to verify...", cand_code)
             cand_dl = Path(cl.video_download(candidate.pk, folder=temp_dir))
+
+            # 1. Sound check: Video MUST have original audio / music
+            if not video_has_audio(cand_dl):
+                log.warning("REJECTED candidate %s: NO AUDIO (video must have sound/music)", cand_code)
+                cand_dl.unlink(missing_ok=True)
+                used_codes.add(cand_code)
+                continue
+
+            # 2. Face & Person check: 100% faceless screen/code/terminal video
             has_face, face_reason = has_human_face_or_person(cand_dl)
             if has_face:
                 log.warning("REJECTED candidate %s: %s (NO HUMAN FACES allowed)", cand_code, face_reason)
@@ -529,22 +566,20 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                 used_codes.add(cand_code)
                 continue
 
-            # Candidate passed face & person check!
-            log.info("APPROVED candidate %s: 100%% faceless terminal/screen/setup video!", cand_code)
+            # Candidate passed both checks!
+            log.info("APPROVED candidate %s: Has audio + 100%% faceless code/terminal video!", cand_code)
             chosen = candidate
             code = cand_code
             dl_path = cand_dl
             break
 
         if not chosen or not dl_path or not dl_path.exists():
-            raise RuntimeError("Topilgan barcha videolarda odam yuzi aniqlandi. Qayta qidiriladi.")
+            raise RuntimeError("Mos video topilmadi (ovozsiz yoki odam yuzi bor). Qayta qidiriladi.")
 
         norm_path = temp_dir / f"norm_{code}.mp4"
         wm_path = temp_dir / f"wm_{code}.png"
-        hook_path = temp_dir / f"hook_{code}.png"
-        cta_path = temp_dir / f"cta_{code}.png"
 
-        # Draw clean, sleek Uzbek top & bottom banners (Visual only, NO AI voiceover - pure music preserved)
+        # Watermark ONLY: small, subtle nickname + author credit in corner. NO extra banners/text!
         try:
             from PIL import Image, ImageDraw, ImageFont
 
@@ -561,83 +596,40 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                         continue
                 return ImageFont.load_default()
 
-            font_title = _font(34, True)
-            font_sub = _font(24)
-            font_cta = _font(30, True)
-            font_brand = _font(26)
             font_wm = _font(26, True)
             font_credit = _font(20)
 
             W, H = 1080, 1920
-            hook_map = [
-                ("HECH KIM BILMAYDIGAN", "GITHUB SIRLARI"),
-                ("ISHNI 5X TEZLASHTIRUVCHI", "TERMINAL XAKLARI"),
-                ("5 SONIYADA ISHLAYDIGAN", "PYTHON SKRIPT"),
-                ("HAR BIR DASTURCHIGA", "KERAKLI VOSITA"),
-                ("LINUX XAVFSIZLIK", "VOSITALARI"),
-            ]
-            h_small, h_big = hook_map[slot_index % len(hook_map)]
-            font_hs = _font(34, True)
-            font_hb = _font(58, True)
-
-            # Layer 1: watermark (whole video) - small IG logo + @coder_bahrom, author credit
             wm = Image.new("RGBA", (W, H), (0, 0, 0, 0))
             d = ImageDraw.Draw(wm)
             lx, ly, ls = 44, 232, 40
             name_w = d.textlength("@coder_bahrom", font=font_wm)
-            d.rounded_rectangle([lx - 10, ly - 8, lx + ls + 22 + name_w, ly + ls + 8], radius=24, fill=(0, 0, 0, 90))
+            d.rounded_rectangle([lx - 10, ly - 8, lx + ls + 22 + name_w, ly + ls + 8], radius=24, fill=(0, 0, 0, 110))
             d.rounded_rectangle([lx, ly, lx + ls, ly + ls], radius=11, outline=(255, 255, 255, 230), width=3)
             d.ellipse([lx + 11, ly + 11, lx + ls - 11, ly + ls - 11], outline=(255, 255, 255, 230), width=3)
             d.ellipse([lx + ls - 11, ly + 6, lx + ls - 6, ly + 11], fill=(255, 255, 255, 230))
-            d.text((lx + ls + 12, ly + ls // 2), "@coder_bahrom", font=font_wm, fill=(255, 255, 255, 235), anchor="lm")
+            d.text((lx + ls + 12, ly + ls // 2), "@coder_bahrom", font=font_wm, fill=(255, 255, 255, 240), anchor="lm")
             author = str(getattr(getattr(chosen, "user", None), "username", "") or "").strip()
             if author:
                 credit = f"video: @{author}"
                 tw = d.textlength(credit, font=font_credit)
-                d.rounded_rectangle([W - 44 - tw - 24, 238, W - 44, 274], radius=18, fill=(0, 0, 0, 90))
+                d.rounded_rectangle([W - 44 - tw - 24, 238, W - 44, 274], radius=18, fill=(0, 0, 0, 110))
                 d.text((W - 44 - 12, 256), credit, font=font_credit, fill=(230, 230, 230, 220), anchor="rm")
             wm.save(wm_path)
-
-            # Layer 2: hook (first 2.5s) - frameless glass pill
-            hk = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-            d = ImageDraw.Draw(hk)
-            bw = max(d.textlength(h_small, font=font_hs), d.textlength(h_big, font=font_hb)) + 90
-            d.rounded_rectangle([(W - bw) / 2, 560, (W + bw) / 2, 760], radius=36, fill=(10, 12, 20, 175))
-            d.text((W / 2, 615), h_small, font=font_hs, fill=(255, 255, 255, 255), anchor="mm")
-            d.text((W / 2, 692), h_big, font=font_hb, fill=(0, 225, 255, 255), anchor="mm")
-            hk.save(hook_path)
-
-            # Layer 3: CTA (last 3s)
-            ct = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-            d = ImageDraw.Draw(ct)
-            l1, l2 = "Kommentga \u00abKOD\u00bb deb yozing", "skriptni Direct'ga yuboramiz"
-            bw = max(d.textlength(l1, font=font_cta), d.textlength(l2, font=font_brand)) + 90
-            d.rounded_rectangle([(W - bw) / 2, 1300, (W + bw) / 2, 1440], radius=36, fill=(10, 12, 20, 185))
-            d.text((W / 2, 1345), l1, font=font_cta, fill=(255, 210, 70, 255), anchor="mm")
-            d.text((W / 2, 1400), l2, font=font_brand, fill=(255, 255, 255, 240), anchor="mm")
-            ct.save(cta_path)
         except Exception as exc:
-            log.warning("overlay banner warning: %s", exc)
+            log.warning("Watermark error: %s", exc)
 
-        # Composite video: keep original viral music track at full 100% volume, NO AI VOICEOVER
         vdur = min(float(getattr(chosen, "video_duration", 0) or 28.0), 28.0)
-        cta_start = max(vdur - 3.0, 3.0)
-        if wm_path.exists() and hook_path.exists() and cta_path.exists():
+        if wm_path.exists():
             ff_args = [
                 "ffmpeg", "-y", "-v", "quiet",
                 "-i", str(dl_path),
                 "-loop", "1", "-t", f"{vdur:.2f}", "-i", str(wm_path),
-                "-loop", "1", "-t", f"{vdur:.2f}", "-i", str(hook_path),
-                "-loop", "1", "-t", f"{vdur:.2f}", "-i", str(cta_path),
                 "-filter_complex",
                 "[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30[base];"
-                "[2:v]format=rgba,fade=t=in:st=0:d=0.25:alpha=1,fade=t=out:st=2.2:d=0.4:alpha=1[hk];"
-                f"[3:v]format=rgba,fade=t=in:st={cta_start:.2f}:d=0.4:alpha=1[ct];"
-                "[base][1:v]overlay=0:0:shortest=1[v1];"
-                "[v1][hk]overlay=0:0:shortest=1[v2];"
-                "[v2][ct]overlay=0:0:shortest=1[vout]",
+                "[base][1:v]overlay=0:0:shortest=1[vout]",
                 "-map", "[vout]",
-                "-map", "0:a?",
+                "-map", "0:a:0",
                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "192k",
                 "-t", f"{vdur:.2f}",
@@ -647,8 +639,10 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             ff_args = [
                 "ffmpeg", "-y", "-v", "quiet",
                 "-i", str(dl_path),
-                "-t", "28",
+                "-t", f"{vdur:.2f}",
                 "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,fps=30",
+                "-map", "0:v:0",
+                "-map", "0:a:0",
                 "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "192k",
                 str(norm_path),
@@ -656,8 +650,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
 
         subprocess.run(ff_args, check=True, timeout=180)
         dl_path.unlink(missing_ok=True)
-        for p in (wm_path, hook_path, cta_path):
-            p.unlink(missing_ok=True)
+        wm_path.unlink(missing_ok=True)
 
         caption_pool = spec.get("captions", [spec.get("caption", "")])
         chosen_caption = random.choice(caption_pool)
