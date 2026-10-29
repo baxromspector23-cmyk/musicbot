@@ -636,7 +636,6 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                 return ImageFont.load_default()
 
             font_wm = _font(26, True)
-            font_credit = _font(20)
 
             W, H = 1080, 1920
             wm = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -648,12 +647,6 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             d.ellipse([lx + 11, ly + 11, lx + ls - 11, ly + ls - 11], outline=(255, 255, 255, 230), width=3)
             d.ellipse([lx + ls - 11, ly + 6, lx + ls - 6, ly + 11], fill=(255, 255, 255, 230))
             d.text((lx + ls + 12, ly + ls // 2), "@coder_bahrom", font=font_wm, fill=(255, 255, 255, 240), anchor="lm")
-            author = str(getattr(getattr(chosen, "user", None), "username", "") or "").strip()
-            if author:
-                credit = f"video: @{author}"
-                tw = d.textlength(credit, font=font_credit)
-                d.rounded_rectangle([W - 44 - tw - 24, 238, W - 44, 274], radius=18, fill=(0, 0, 0, 110))
-                d.text((W - 44 - 12, 256), credit, font=font_credit, fill=(230, 230, 230, 220), anchor="rm")
             wm.save(wm_path)
         except Exception as exc:
             log.warning("Watermark error: %s", exc)
