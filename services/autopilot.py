@@ -454,10 +454,26 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         # Draw clean, sleek Uzbek top & bottom banners (Visual only, NO AI voiceover - pure music preserved)
         try:
             from PIL import Image, ImageDraw, ImageFont
-            font_title = ImageFont.truetype("arialbd.ttf", 34) if os.name == "nt" else ImageFont.load_default()
-            font_sub = ImageFont.truetype("arial.ttf", 24) if os.name == "nt" else ImageFont.load_default()
-            font_cta = ImageFont.truetype("arialbd.ttf", 30) if os.name == "nt" else ImageFont.load_default()
-            font_brand = ImageFont.truetype("arial.ttf", 26) if os.name == "nt" else ImageFont.load_default()
+
+            def _font(size: int, bold: bool = False):
+                cands = (
+                    ["arialbd.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
+                    if bold else
+                    ["arial.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
+                )
+                for f in cands:
+                    try:
+                        return ImageFont.truetype(f, size)
+                    except Exception:
+                        continue
+                return ImageFont.load_default()
+
+            font_title = _font(34, True)
+            font_sub = _font(24)
+            font_cta = _font(30, True)
+            font_brand = _font(26)
+            font_wm = _font(26, True)
+            font_credit = _font(20)
 
             overlay_img = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
             odraw = ImageDraw.Draw(overlay_img)
@@ -465,14 +481,31 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             # Top Uzbek banner (sleek dark glass effect with viral hook)
             top_box = [90, 370, 990, 525]
             odraw.rounded_rectangle(top_box, radius=20, fill=(12, 15, 24, 215), outline=(0, 220, 255, 230), width=3)
-            odraw.text((140, 395), "🔥 DASTURCHILAR UCHUN TOP SKRIPT ⚡️", font=font_title, fill=(255, 255, 255))
-            odraw.text((180, 460), "Tezkor Terminal & CLI Xaklari | @coder_bahrom", font=font_sub, fill=(0, 230, 255))
+            odraw.text((540, 420), "DASTURCHILAR UCHUN TOP SKRIPT", font=font_title, fill=(255, 255, 255), anchor="mm")
+            odraw.text((540, 478), "Tezkor Terminal & CLI Xaklari | @coder_bahrom", font=font_sub, fill=(0, 230, 255), anchor="mm")
 
             # Bottom Uzbek CTA (high-converting comment trigger badge)
             bot_box = [90, 1675, 990, 1825]
             odraw.rounded_rectangle(bot_box, radius=20, fill=(12, 15, 24, 220), outline=(255, 195, 45, 230), width=3)
-            odraw.text((150, 1698), "💬 Kommentga «KOD» deb yozing!", font=font_cta, fill=(255, 220, 90))
-            odraw.text((185, 1752), "Direct'ga skriptni yuboramiz | @coder_bahrom", font=font_brand, fill=(255, 255, 255))
+            odraw.text((540, 1720), "Kommentga \u00abKOD\u00bb deb yozing!", font=font_cta, fill=(255, 220, 90), anchor="mm")
+            odraw.text((540, 1778), "Direct'ga skriptni yuboramiz | @coder_bahrom", font=font_brand, fill=(255, 255, 255), anchor="mm")
+
+            # Small Instagram logo + @coder_bahrom watermark (top-left corner)
+            lx, ly, ls = 40, 230, 46
+            odraw.rounded_rectangle([lx - 8, ly - 8, lx + ls + 250, ly + ls + 8], radius=16, fill=(0, 0, 0, 110))
+            odraw.rounded_rectangle([lx, ly, lx + ls, ly + ls], radius=13, outline=(255, 255, 255, 235), width=4)
+            odraw.ellipse([lx + 12, ly + 12, lx + ls - 12, ly + ls - 12], outline=(255, 255, 255, 235), width=4)
+            odraw.ellipse([lx + ls - 13, ly + 7, lx + ls - 7, ly + 13], fill=(255, 255, 255, 235))
+            odraw.text((lx + ls + 14, ly + ls // 2), "@coder_bahrom", font=font_wm, fill=(255, 255, 255, 240), anchor="lm")
+
+            # Original author credit (top-right corner, small)
+            author = str(getattr(getattr(chosen, "user", None), "username", "") or "").strip()
+            if author:
+                credit = f"video: @{author}"
+                tw = odraw.textlength(credit, font=font_credit)
+                cx2 = 1040
+                odraw.rounded_rectangle([cx2 - tw - 20, 238, cx2, 270], radius=12, fill=(0, 0, 0, 110))
+                odraw.text((cx2 - 10, 254), credit, font=font_credit, fill=(235, 235, 235, 230), anchor="rm")
 
             overlay_img.save(overlay_path)
         except Exception as exc:
