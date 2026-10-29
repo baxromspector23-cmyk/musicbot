@@ -153,6 +153,15 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
                 cap.release()
                 return False, f"static slide/low motion graphic (diff={diff:.1f} < 10.0)"
 
+            # Check for letterbox black padding bars on top or bottom
+            gray1 = cv2.cvtColor(f1, cv2.COLOR_BGR2GRAY)
+            row_means = np.mean(gray1, axis=1)
+            top_black = sum(1 for rm in row_means[:int(h * 0.35)] if rm < 12.0)
+            bot_black = sum(1 for rm in row_means[int(h * 0.65):] if rm < 12.0)
+            if (top_black / h > 0.08) or (bot_black / h > 0.08):
+                cap.release()
+                return False, f"letterboxed video with black padding bars (top={top_black/h*100:.1f}%, bot={bot_black/h*100:.1f}%)"
+
         # 3. Load Haar cascades for face detection
         cascades = []
         for name in ("haarcascade_frontalface_default.xml", "haarcascade_profileface.xml"):
@@ -207,7 +216,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🌅 Ertalabki Rek #1 (09:00)",
         "niche": "GitHub Open-Source & Dasturchi Skriptlari",
         "search_tags": [
-            "github", "codinglife", "pythoncode", "developer", "opensource",
+            "neovim", "terminalsetup", "kalilinux", "linuxcommands", "clitools",
         ],
         "captions": [
             (
@@ -253,7 +262,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "☀️ Ertalabki Rek #2 (11:00)",
         "niche": "Terminal & CLI Xaklari / Tezkor Skriptlar",
         "search_tags": [
-            "linuxcommands", "linux", "terminalaesthetic", "bashscripting", "clitools",
+            "linuxcommands", "terminal", "bashscripting", "clitools", "neovim",
         ],
         "captions": [
             (
@@ -296,7 +305,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🔥 Kunduzgi Rek (12:00)",
         "niche": "Python Avtomatlashtirish & Cyber Skriptlar",
         "search_tags": [
-            "pythonprogramming", "pythoncode", "pythonscripts", "automationscript", "coding",
+            "pythonprogramming", "pythontricks", "pythoncode", "terminal", "neovim",
         ],
         "captions": [
             (
@@ -331,7 +340,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🌆 Kechki Rek #1 (18:30)",
         "niche": "Top Dasturchi Vositalari & Coding Setup",
         "search_tags": [
-            "github", "codinglife", "pythoncode", "developer", "clitools",
+            "terminalsetup", "neovim", "commandline", "clitools", "linuxterminal",
         ],
         "captions": [
             (
@@ -512,7 +521,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                     if (
                         mtype == 2
                         and 8.0 <= dur <= 30.0
-                        and (plays >= 500 or likes >= 25)
+                        and (plays >= 100 or likes >= 5)
                         and code
                         and code not in used_codes
                         and code not in existing_codes
@@ -537,7 +546,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                     if (
                         mtype == 2
                         and 8.0 <= dur <= 30.0
-                        and (plays >= 500 or likes >= 25)
+                        and (plays >= 100 or likes >= 5)
                         and code
                         and code not in used_codes
                         and code not in existing_codes
