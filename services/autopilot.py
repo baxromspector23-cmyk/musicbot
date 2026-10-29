@@ -111,9 +111,12 @@ def video_has_audio(video_path: Path) -> bool:
         return False
 
 
-def has_human_face_or_person(video_path: Path) -> tuple[bool, str]:
-    """Inspect video frames with OpenCV Haar Cascades and YCrCb skin-tone detector.
-    Returns (True, reason) if any human face or person is detected, (False, '') if 100% faceless screen/setup.
+def verify_video_content(video_path: Path) -> tuple[bool, str]:
+    """Inspect video for:
+    1. Native 9:16 vertical aspect ratio (height / width >= 1.25) to avoid landscape black bars.
+    2. Dynamic motion (frame diff >= 10.0) to reject static slides, pictures, or looping pixel art.
+    3. 100% Faceless (OpenCV Haar cascades and center skin-tone detector).
+    Returns (True, '') if passed, (False, reason) if rejected.
     """
     try:
         import cv2
@@ -121,14 +124,36 @@ def has_human_face_or_person(video_path: Path) -> tuple[bool, str]:
 
         cap = cv2.VideoCapture(str(video_path))
         if not cap.isOpened():
-            return False, ""
+            return False, "cannot open video"
 
+        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
-        if total_frames <= 0:
-            cap.release()
-            return False, ""
 
-        # Load OpenCV Haar cascade classifiers
+        if w <= 0 or h <= 0 or total_frames < 30:
+            cap.release()
+            return False, "invalid dimensions or frames"
+
+        # 1. Native vertical aspect ratio check (must be portrait/reel format)
+        aspect = float(h) / float(w)
+        if aspect < 1.25:
+            cap.release()
+            return False, f"landscape/square aspect ratio {aspect:.2f} (must be native vertical >= 1.25)"
+
+        # 2. Dynamic motion check (reject static slides and looping pictures)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(total_frames * 0.20))
+        ret1, f1 = cap.read()
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(total_frames * 0.70))
+        ret2, f2 = cap.read()
+        if ret1 and ret2 and f1 is not None and f2 is not None:
+            g1 = cv2.cvtColor(cv2.resize(f1, (320, 180)), cv2.COLOR_BGR2GRAY)
+            g2 = cv2.cvtColor(cv2.resize(f2, (320, 180)), cv2.COLOR_BGR2GRAY)
+            diff = float(np.mean(cv2.absdiff(g1, g2)))
+            if diff < 10.0:
+                cap.release()
+                return False, f"static slide/low motion graphic (diff={diff:.1f} < 10.0)"
+
+        # 3. Load Haar cascades for face detection
         cascades = []
         for name in ("haarcascade_frontalface_default.xml", "haarcascade_profileface.xml"):
             p = getattr(cv2, "data", None) and getattr(cv2.data, "haarcascades", "") + name
@@ -146,37 +171,33 @@ def has_human_face_or_person(video_path: Path) -> tuple[bool, str]:
             if not ret or frame is None:
                 continue
 
-            h, w = frame.shape[:2]
-            if h < 100 or w < 100:
-                continue
-
-            scale = 480.0 / max(h, w)
-            small = cv2.resize(frame, (int(w * scale), int(h * scale)))
+            fh, fw = frame.shape[:2]
+            scale = 480.0 / max(fh, fw)
+            small = cv2.resize(frame, (int(fw * scale), int(fh * scale)))
             gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
 
-            # 1. Cascade face detection
+            # Cascade face check
             for c_name, casc in cascades:
                 faces = casc.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=3, minSize=(28, 28))
                 if len(faces) > 0:
                     cap.release()
-                    return True, f"human face detected ({c_name} at {int(pt*100)}%)"
+                    return False, f"human face detected ({c_name} at {int(pt*100)}%)"
 
-            # 2. Skin-tone detection in center region (talking heads occupy center)
+            # Center skin check
             sh, sw = small.shape[:2]
             center = small[int(sh * 0.12):int(sh * 0.88), int(sw * 0.15):int(sw * 0.85)]
             ycrcb = cv2.cvtColor(center, cv2.COLOR_BGR2YCrCb)
-            # Standard human skin range in YCrCb: 133 <= Cr <= 173 and 77 <= Cb <= 127
             skin_mask = cv2.inRange(ycrcb, np.array([0, 133, 77]), np.array([255, 173, 127]))
             skin_ratio = float(np.count_nonzero(skin_mask)) / float(skin_mask.shape[0] * skin_mask.shape[1])
-            if skin_ratio > 0.11:  # >11% skin in center frame = person talking on camera
+            if skin_ratio > 0.11:
                 cap.release()
-                return True, f"human skin/body detected ({skin_ratio*100:.1f}% at {int(pt*100)}%)"
+                return False, f"human skin/body detected ({skin_ratio*100:.1f}% at {int(pt*100)}%)"
 
         cap.release()
-        return False, ""
+        return True, ""
     except Exception as exc:
-        log.warning("face detection exception (pass through): %s", exc)
-        return False, ""
+        log.warning("video verification exception (pass through): %s", exc)
+        return True, ""
 
 
 # 5 daily optimal Rek slots in Asia/Tashkent (Special 2-Day GitHub & Hack Scripts Edition):
@@ -567,16 +588,16 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                 used_codes.add(cand_code)
                 continue
 
-            # 2. Face & Person check: 100% faceless screen/code/terminal video
-            has_face, face_reason = has_human_face_or_person(cand_dl)
-            if has_face:
-                log.warning("REJECTED candidate %s: %s (NO HUMAN FACES allowed)", cand_code, face_reason)
+            # 2. Strict Quality & Content check: Native 9:16 vertical, Dynamic motion, 100% Faceless
+            ok, reason = verify_video_content(cand_dl)
+            if not ok:
+                log.warning("REJECTED candidate %s: %s", cand_code, reason)
                 cand_dl.unlink(missing_ok=True)
                 used_codes.add(cand_code)
                 continue
 
-            # Candidate passed both checks!
-            log.info("APPROVED candidate %s: Has audio + 100%% faceless code/terminal video!", cand_code)
+            # Candidate passed all checks!
+            log.info("APPROVED candidate %s: 100%% native vertical, dynamic, faceless video with sound!", cand_code)
             chosen = candidate
             code = cand_code
             dl_path = cand_dl
