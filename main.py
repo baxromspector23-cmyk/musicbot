@@ -144,32 +144,41 @@ async def on_startup(bot: Bot, dispatcher: Dispatcher) -> None:
     # Initialize persistent SQLite/Postgres database
     await db.init_db()
 
-    await bot.set_my_commands([
-        BotCommand(command="start", description="Boshlash"),
-        BotCommand(command="autopilot", description="Kuniga 4 ta avto-video (09:00, 11:30, 18:30, 20:30)"),
-        BotCommand(command="stats", description="Jonli Instagram statistika"),
-        BotCommand(command="reel", description="Instagram Reel rejalashtirish"),
-        BotCommand(command="queue", description="Rejalashtirilgan postlar"),
-        BotCommand(command="history", description="Postlar tarixi"),
-        BotCommand(command="igstatus", description="Instagram ulanish holati"),
-        BotCommand(command="rek", description="AI orqali Instagram profilni Rek uchun moslash"),
-        BotCommand(command="iglogin", description="Instagram'ga ulanish (Facebook'siz)"),
-        BotCommand(command="new", description="Yangi fayl"),
-        BotCommand(command="help", description="Yordam"),
-        BotCommand(command="cancel", description="Bekor qilish"),
-    ])
+    try:
+        await bot.set_my_commands([
+            BotCommand(command="start", description="Boshlash"),
+            BotCommand(command="autopilot", description="Kuniga 5 ta avto-video (09:00, 11:00, 12:00, 18:30, 20:30)"),
+            BotCommand(command="stats", description="Jonli Instagram statistika"),
+            BotCommand(command="reel", description="Instagram Reel rejalashtirish"),
+            BotCommand(command="queue", description="Rejalashtirilgan postlar"),
+            BotCommand(command="history", description="Postlar tarixi"),
+            BotCommand(command="igstatus", description="Instagram ulanish holati"),
+            BotCommand(command="rek", description="AI orqali Instagram profilni Rek uchun moslash"),
+            BotCommand(command="iglogin", description="Instagram'ga ulanish (Facebook'siz)"),
+            BotCommand(command="new", description="Yangi fayl"),
+            BotCommand(command="help", description="Yordam"),
+            BotCommand(command="cancel", description="Bekor qilish"),
+        ])
+    except Exception as exc:
+        log.warning("Could not set bot commands: %s", exc)
 
     if config.BASE_URL:
-        await bot.set_webhook(
-            config.BASE_URL + config.WEBHOOK_PATH,
-            secret_token=config.WEBHOOK_SECRET,
-            allowed_updates=dispatcher.resolve_used_update_types(),
-            drop_pending_updates=False,
-        )
-        log.info("webhook set to %s%s", config.BASE_URL, config.WEBHOOK_PATH)
+        try:
+            await bot.set_webhook(
+                config.BASE_URL + config.WEBHOOK_PATH,
+                secret_token=config.WEBHOOK_SECRET,
+                allowed_updates=dispatcher.resolve_used_update_types(),
+                drop_pending_updates=False,
+            )
+            log.info("webhook set to %s%s", config.BASE_URL, config.WEBHOOK_PATH)
+        except Exception as exc:
+            log.warning("Failed to set webhook: %s", exc)
     else:
-        await bot.delete_webhook(drop_pending_updates=False)
-        log.info("no public URL configured: polling mode")
+        try:
+            await bot.delete_webhook(drop_pending_updates=False)
+            log.info("no public URL configured: polling mode")
+        except Exception as exc:
+            log.warning("Could not delete webhook: %s", exc)
 
     _cleanup_task = asyncio.create_task(store.cleanup_loop())
     _keepalive_task = asyncio.create_task(keep_awake_loop())
