@@ -1,12 +1,6 @@
 name: Cloud Autopilot Reels (5x Daily Rek)
 
 on:
-  schedule:
-    # Every hour at :00 (UTC). The runner decides: during the 24h marathon
-    # (2026-10-30 00:00 -> 2026-10-31 00:00 Tashkent) it posts every hour,
-    # at 2026-10-31 00:xx it sends the Telegram stats report,
-    # otherwise it only posts at the regular 5 daily slots.
-    - cron: "3,18,33,48 * * * *"
   workflow_dispatch:
     inputs:
       mode:
