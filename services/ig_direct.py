@@ -66,7 +66,13 @@ async def load_direct_settings() -> dict[str, Any] | None:
         raw_json = tokens.decrypt_token(record["encrypted_settings"])
         if raw_json:
             try:
-                return json.loads(raw_json)
+                settings = json.loads(raw_json)
+                if isinstance(settings, dict):
+                    if record.get("username"):
+                        settings["_username"] = str(record["username"])
+                    if record.get("user_id"):
+                        settings["_user_id"] = str(record["user_id"])
+                return settings
             except Exception as exc:
                 log.error("Failed to parse decrypted instagrapi settings: %s", exc)
 
@@ -84,14 +90,32 @@ async def load_direct_settings() -> dict[str, Any] | None:
     return None
 
 
+def _safe_challenge_code_handler(username: str, choice: Any) -> str:
+    """Non-blocking challenge handler: reads from data/challenge_code.txt or raises error."""
+    code_file = Path("data/challenge_code.txt")
+    if code_file.exists():
+        code = code_file.read_text(encoding="utf-8").strip()
+        if code:
+            return code
+    raise RuntimeError(f"Instagram challenge requested for {username} ({choice}) without TTY")
+
+
 def _create_client(settings: dict[str, Any] | None = None):
     from instagrapi import Client
 
     cl = Client()
     cl.request_timeout = 20
     cl.delay_range = [1, 3]
+    cl.challenge_code_handler = _safe_challenge_code_handler
     if settings:
         cl.set_settings(settings)
+        if settings.get("_username"):
+            cl.username = str(settings["_username"])
+        if settings.get("_user_id") and not cl.user_id:
+            try:
+                cl.user_id = int(settings["_user_id"])
+            except Exception:
+                pass
     # Bypass broken IGUSDIDRegistrationMutation on graphql_www which returns field_exception
     try:
         if not getattr(cl, "usdid_private_key", None):

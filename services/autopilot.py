@@ -413,7 +413,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         existing_durations: list[float] = []
         existing_codes: set[str] = set()
         try:
-            my_medias = cl.user_medias_v1(my_uid, amount=50)
+            my_medias = cl.user_medias_v1(my_uid, amount=15)
             for mm in my_medias:
                 d = float(getattr(mm, "video_duration", 0) or 0)
                 if d > 0:
@@ -430,9 +430,8 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         random.shuffle(tags_to_try)
 
         for tag in tags_to_try:
-            # Query top
             try:
-                medias = cl.hashtag_medias_top_v1(tag, amount=25)
+                medias = cl.hashtag_medias_top_v1(tag, amount=9)
                 for m in medias:
                     code = str(getattr(m, "code", "") or "")
                     dur = float(getattr(m, "video_duration", 0) or 0)
@@ -455,20 +454,21 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             except Exception as exc:
                 log.debug("hashtag top search %s warning: %s", tag, exc)
 
-            # Query recent
+            if len(candidates) >= 5:
+                break
+
+        # Fallback: if hashtag search yielded few candidates, check explore reels
+        if len(candidates) < 3:
             try:
-                medias = cl.hashtag_medias_recent_v1(tag, amount=20)
-                for m in medias:
+                exp_reels = cl.explore_reels(amount=10)
+                for m in exp_reels:
                     code = str(getattr(m, "code", "") or "")
                     dur = float(getattr(m, "video_duration", 0) or 0)
                     mtype = int(getattr(m, "media_type", 0) or 0)
                     owner_pk = str(getattr(getattr(m, "user", None), "pk", "") or "")
-                    plays = int(getattr(m, "play_count", 0) or 0)
-                    likes = int(getattr(m, "like_count", 0) or 0)
                     if (
                         mtype == 2
                         and 8.0 <= dur <= 30.0
-                        and (plays >= 100 or likes >= 5)
                         and code
                         and code not in used_codes
                         and code not in existing_codes
@@ -477,11 +477,8 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                         and not is_unwanted_content(m)
                     ):
                         candidates.append(m)
-            except Exception:
-                pass
-
-            if len(candidates) >= 20:
-                break
+            except Exception as exc:
+                log.debug("explore_reels fallback warning: %s", exc)
 
         if not candidates:
             raise RuntimeError("Mos va takrorlanmas video topilmadi, keyingi urinishda qayta qidiriladi.")
@@ -509,8 +506,11 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             cand_code = str(candidate.code)
             plays = getattr(candidate, "play_count", 0)
             likes = getattr(candidate, "like_count", 0)
-            log.info("Downloading viral candidate %s (plays=%s, likes=%s) to verify...", cand_code, plays, likes)
-            cand_dl = Path(cl.video_download(candidate.pk, folder=temp_dir))
+            v_url = getattr(candidate, "video_url", None)
+            if v_url:
+                cand_dl = Path(cl.video_download_by_url(str(v_url), filename=f"cand_{cand_code}.mp4", folder=temp_dir))
+            else:
+                cand_dl = Path(cl.video_download(candidate.pk, folder=temp_dir))
 
             # 1. Sound check: Video MUST have original audio / music
             if not video_has_audio(cand_dl):
