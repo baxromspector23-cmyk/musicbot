@@ -219,203 +219,115 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
         return True, ""
 
 
-# 5 daily optimal Rek slots in Asia/Tashkent (Special 2-Day GitHub & Hack Scripts Edition):
+# 3 daily optimal Rek slots in Asia/Tashkent (AI & Future Tech Edition):
 DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
     {
-        "time": "09:00",
-        "label": "🌅 Ertalabki Rek #1 (09:00)",
-        "niche": "GitHub Open-Source & Dasturchi Skriptlari",
-        "search_tags": [
-            "neovim", "terminalsetup", "kalilinux", "linuxcommands", "clitools",
-        ],
-        "captions": [
-            (
-                "⚡️ Har bir dasturchi bilishi shart bo'lgan Top GitHub skriptlari! 💻🔥\n\n"
-                "Ochiq kodli (Open-source) eng qulay va kuchli vositalar orqali ishingizni 10x tezlashtiring:\n"
-                "✅ Bepul va ochiq kodli GitHub loyihalari\n"
-                "✅ Kod yozish va vazifalarni avtomatlashtirish\n"
-                "✅ Terminalda birgina buyruq bilan ishga tushirish\n\n"
-                "🚀 Profilimizda har kuni eng zo'r IT xaklar va dasturlash sirlari!\n"
-                "Obuna bo'ling: @coder_bahrom"
-            ),
-            (
-                "🔥 GitHub dagi aqlbovar qilmas foydali ochiq kodli loyihalar! 🛠✨\n\n"
-                "Bular haqida ko'pchilik bilmaydi, lekin har bir dasturchining hayotini yengillashtiradi:\n"
-                "✅ Qidiruv va kod tahlili uchun tayyor skriptlar\n"
-                "✅ Ish unumdorligini oshiruvchi CLI vositalar\n"
-                "✅ Ochiq kod — istalgan loyihaga moslashtiring\n\n"
-                "💎 Foydali bo'lsa saqlab qo'ying va do'stlarga ulashing!\n"
-                "Kanalimiz: @coder_bahrom"
-            ),
-            (
-                "🚀 GitHub dagi eng sara skriptlar va dasturchi xaklari! ⚡️\n\n"
-                "Noldan yozib o'tirmang — hammasi GitHub da tayyor va ochiq:\n"
-                "✅ Avtomatlashtirilgan repozitoriylar\n"
-                "✅ CLI va terminal skriptlari\n"
-                "✅ Ishlab chiquvchilar uchun eng yangi trendlar\n\n"
-                "💻 Ko'proq IT sirlari uchun sahifamizni kuzatib boring: @coder_bahrom"
-            ),
-        ],
-        "caption": (
-            "⚡️ Har bir dasturchi bilishi shart bo'lgan Top GitHub skriptlari! 💻🔥\n\n"
-            "Ochiq kodli (Open-source) eng qulay va kuchli vositalar orqali ishingizni 10x tezlashtiring:\n"
-            "✅ Bepul va ochiq kodli GitHub loyihalari\n"
-            "✅ Kod yozish va vazifalarni avtomatlashtirish\n"
-            "✅ Terminalda birgina buyruq bilan ishga tushirish\n\n"
-            "🚀 Profilimizda har kuni eng zo'r IT xaklar va dasturlash sirlari!\n"
-            "Obuna bo'ling: @coder_bahrom"
-        ),
-        "hashtags": ["github", "dasturlash", "ituz", "coder", "dasturchi", "opensource", "codinglife"],
-    },
-    {
         "time": "11:00",
-        "label": "☀️ Ertalabki Rek #2 (11:00)",
-        "niche": "Terminal & CLI Xaklari / Tezkor Skriptlar",
+        "label": "☀️ Kunduzgi Rek #1 (11:00)",
+        "niche": "Top AI Saytlar & Hayotiy Xaklar",
         "search_tags": [
-            "linuxcommands", "terminal", "bashscripting", "clitools", "neovim",
+            "aitools", "aiwebsite", "usefulwebsites", "productivitytools",
         ],
         "captions": [
             (
-                "⚡️ Hech kim bilmaydigan eng kuchli Terminal xaklari va CLI skriptlar! 💻🔥\n\n"
-                "Sichqonchani unuting — dasturchilar va IT mutaxassislari hamma vazifani terminalda 5 baravar tezroq bajaradi!\n\n"
-                "✅ Ishni 10x tezlashtiruvchi CLI buyruqlar\n"
-                "✅ Tezkor navigatsiya va fayllarni boshqarish\n"
-                "✅ Zsh, Bash va Neovim ajoyib konfiguratsiyalari\n\n"
-                "🚀 Profilimizda har kuni eng zo'r IT sirlari! Obuna: @coder_bahrom"
+                "⚡️ Hech kim bilmaydigan eng kuchli Sun'iy Intellekt saytlari! 💻🔥\n\n"
+                "Soatlab qilinadigan ishlarni 1 daqiqada bajaring:\n"
+                "✅ Taqdimot va slaydlarni avtomatik tayyorlash\n"
+                "✅ Matnlarni tahrirlash va g'oyalar yaratish\n"
+                "✅ Ish unumdorligini 10x oshiruvchi bepul vositalar\n\n"
+                "📌 Keyinroq kerak bo'ladi — albatta saqlab oling!\n"
+                "🚀 Kelajak texnologiyalari: @test_aibot"
             ),
             (
-                "🔥 Dasturchilar ishini 5 baravar tezlashtiruvchi Terminal vositalari! 🛠⚡️\n\n"
-                "Rutin ishlarga vaqtingizni sarflamang, terminal skriptlari hammasini avtomatlashtiradi:\n\n"
-                "✅ Kuchli CLI qidiruv va ma'lumot tahlili\n"
-                "✅ Birgina buyruq bilan murakkab jarayonlarni boshqarish\n"
-                "✅ Linux, Mac va Windows uchun to'liq mos\n\n"
-                "Kanalimiz: @coder_bahrom"
-            ),
-            (
-                "🚀 Klaviaturadan qo'lni uzmasdan ishlash! Terminal dasturchi sirlari ⚡️💻\n\n"
-                "Noldan kod yozib o'tirmang — tayyor ochiq kodli vositalar orqali professional darajaga chiqing:\n\n"
-                "✅ Zsh, Bash va CLI maxsus aliaslari\n"
-                "✅ Serverlarni 1 soniyada monitoring qilish\n"
-                "✅ Git va GitHub buyruqlarini avtomatlashtirish\n\n"
-                "💎 Do'stingizga ham yuboring, u ham vaqtini tejashni o'rgansin! Obuna: @coder_bahrom"
+                "🔥 Internetdagi eng foydali va bepul AI vositalari! 🛠✨\n\n"
+                "Bular haqida ko'pchilik bilmaydi, lekin har kuni yordam beradi:\n"
+                "✅ Video va rasmlar sifatini 4K ga oshirish\n"
+                "✅ Ovozni tozalash va professional montaj\n"
+                "✅ 100% bepul va qulay interfeys\n\n"
+                "💎 Do'stlaringizga ham ulashing!\n"
+                "Sahifamiz: @test_aibot"
             ),
         ],
         "caption": (
-            "⚡️ Hech kim bilmaydigan eng kuchli Terminal xaklari va CLI skriptlar! 💻🔥\n\n"
-            "Sichqonchani unuting — dasturchilar va IT mutaxassislari hamma vazifani terminalda 5 baravar tezroq bajaradi!\n\n"
-            "✅ Ishni 10x tezlashtiruvchi CLI buyruqlar\n"
-            "✅ Tezkor navigatsiya va fayllarni boshqarish\n"
-            "✅ Zsh, Bash va Neovim ajoyib konfiguratsiyalari\n\n"
-            "🚀 Profilimizda har kuni eng zo'r IT sirlari! Obuna: @coder_bahrom"
+            "⚡️ Hech kim bilmaydigan eng kuchli Sun'iy Intellekt saytlari! 💻🔥\n\n"
+            "Soatlab qilinadigan ishlarni 1 daqiqada bajaring:\n"
+            "✅ Taqdimot va slaydlarni avtomatik tayyorlash\n"
+            "✅ Matnlarni tahrirlash va g'oyalar yaratish\n"
+            "✅ Ish unumdorligini 10x oshiruvchi bepul vositalar\n\n"
+            "📌 Keyinroq kerak bo'ladi — albatta saqlab oling!\n"
+            "🚀 Kelajak texnologiyalari: @test_aibot"
         ),
-        "hashtags": ["terminal", "linux", "dasturchi", "bash", "codinglife", "ituz", "coder"],
+        "hashtags": ["ai", "suniyintellekt", "texnologiya", "foydali", "lifehack", "saytlar", "ituz"],
     },
     {
-        "time": "12:00",
-        "label": "🔥 Kunduzgi Rek (12:00)",
-        "niche": "Python Avtomatlashtirish & Cyber Skriptlar",
+        "time": "15:00",
+        "label": "🚀 Peshin Rek #2 (15:00)",
+        "niche": "Talabalar va Frilanserlar uchun Super AI",
         "search_tags": [
-            "pythonprogramming", "pythontricks", "pythoncode", "terminal", "neovim",
+            "aitips", "techhacks", "artificialintelligence", "futuretech",
         ],
         "captions": [
             (
-                "🐍 Python da vazifalarni avtomatlashtiruvchi ajoyib skriptlar! ⚡️💻\n\n"
-                "Soatlab qilinadigan ishlarni bir necha qator kod orqali 5 soniyada bajaring:\n"
-                "✅ Internetdan ma'lumotlarni avtomatik yig'ish (Scraping)\n"
-                "✅ Fayllarni saralash va avtomatik hisobotlar\n"
-                "✅ Tarmoq va xavfsizlik monitoringi skriptlari\n\n"
-                "🚀 Python dasturlash va avtomatlashtirish sirlari: @coder_bahrom"
+                "🚀 Rutin ishlarni AI ga topshiring! Talabalar va ishchilar uchun super xaklar ⚡️💻\n\n"
+                "Endi noldan bosh qotirib o'tirmang — sun'iy intellekt hammasini tayyorlab beradi:\n"
+                "✅ Ilmiy ishlar va referatlarni tahlil qilish\n"
+                "✅ Matndan professional prezentatsiya yasash\n"
+                "✅ Xorijiy tillarni tezkor o'rganish yordamchisi\n\n"
+                "💡 Foydali bo'lsa saqlab qo'ying! Obuna: @test_aibot"
             ),
             (
-                "🤖 Rutin ishlarni kodga topshiring! Python avtomatlashtirish xaklari 🔥\n\n"
-                "Dasturchi va IT mutaxassislari uchun tayyor vositalar:\n"
-                "✅ API bilan ishlash va ma'lumotlar tahlili\n"
-                "✅ Telegram botlar orqali boshqariluvchi skriptlar\n"
-                "✅ Ochiq kodli GitHub loyihalari\n\n"
-                "💡 Profilimizga obuna bo'ling: @coder_bahrom"
+                "⚡️ Ushbu AI saytlari sizning o'rningizga ishlaydi! 🤯✨\n\n"
+                "Har kuni vaqtingizni tejash uchun eng sara vositalar:\n"
+                "✅ Avtomatik slaydlar va hisobotlar\n"
+                "✅ Bepul grafik dizayn va illyustratsiyalar\n"
+                "✅ Samaradorlikni 10 barobar oshirish sirlari\n\n"
+                "📌 Saqlab oling va do'stlarga yuboring! @test_aibot"
             ),
         ],
         "caption": (
-            "🐍 Python da vazifalarni avtomatlashtiruvchi ajoyib skriptlar! ⚡️💻\n\n"
-            "Soatlab qilinadigan ishlarni bir necha qator kod orqali 5 soniyada bajaring:\n"
-            "✅ Internetdan ma'lumotlarni avtomatik yig'ish (Scraping)\n"
-            "✅ Fayllarni saralash va avtomatik hisobotlar\n"
-            "✅ Tarmoq va xavfsizlik monitoringi skriptlari\n\n"
-            "🚀 Python dasturlash va avtomatlashtirish sirlari: @coder_bahrom"
+            "🚀 Rutin ishlarni AI ga topshiring! Talabalar va ishchilar uchun super xaklar ⚡️💻\n\n"
+            "Endi noldan bosh qotirib o'tirmang — sun'iy intellekt hammasini tayyorlab beradi:\n"
+            "✅ Ilmiy ishlar va referatlarni tahlil qilish\n"
+            "✅ Matndan professional prezentatsiya yasash\n"
+            "✅ Xorijiy tillarni tezkor o'rganish yordamchisi\n\n"
+            "💡 Foydali bo'lsa saqlab qo'ying! Obuna: @test_aibot"
         ),
-        "hashtags": ["python", "automation", "dasturlash", "ituzbekistan", "coding", "techtools"],
+        "hashtags": ["ai", "talaba", "frilans", "suniyintellekt", "texnologiya", "ituzbekistan", "lifehacks"],
     },
     {
-        "time": "18:30",
-        "label": "🌆 Kechki Rek #1 (18:30)",
-        "niche": "Top Dasturchi Vositalari & Coding Setup",
+        "time": "20:00",
+        "label": "🌙 Kechki Rek #3 (20:00)",
+        "niche": "1 daqiqada natija beruvchi Super Saytlar",
         "search_tags": [
-            "terminalsetup", "neovim", "commandline", "clitools", "linuxterminal",
+            "usefulwebsites", "aitools", "aiwebsite", "chatgpt",
         ],
         "captions": [
             (
-                "✨ Har bir dasturchining noutbukida bo'lishi kerak bo'lgan super vositalar! 💻🖤\n\n"
-                "Ish muhitini (workflow) maksimal qulay va chiroyli qilish sirlari:\n"
-                "✅ Dark aesthetic kod muhiti va mavzular\n"
-                "✅ Foydali VS Code va terminal plaginlari\n"
-                "✅ Ish unumdorligini (Productivity) oshiruvchi vositalar\n\n"
-                "🔥 Eng so'nggi IT trendlar uchun bizga qo'shiling: @coder_bahrom"
+                "✨ Har bir inson bilishi shart bo'lgan aqlbovar qilmas AI saytlari! 🤖🔥\n\n"
+                "Ushbu neyrotarmoqlar orqali hayotingizni 10 baravar yengillashtiring:\n"
+                "✅ Dizayn va rasmlarni sekundlarda yaratish\n"
+                "✅ Murakkab ma'lumotlarni 1 daqiqada konspekt qilish\n"
+                "✅ Eng so'nggi zamonaviy sun'iy intellekt yangiliklari\n\n"
+                "🚀 Obuna bo'ling va eng birinchilardan bo'lib o'rganing: @test_aibot"
             ),
             (
-                "🖥 Matrix uslubidagi dasturchi muhiti va foydali vositalar! ⚡️\n\n"
-                "Kod yozishni zavqli jarayonga aylantiruvchi yechimlar:\n"
-                "✅ Kuchli terminal emulyatorlari va shriftlar\n"
-                "✅ Tezkor navigatsiya va klaviatura kombinatsiyalari\n"
-                "✅ Ochiq kodli zamonaviy IT asboblari\n\n"
-                "🚀 Ko'proq IT sirlari: @coder_bahrom"
+                "💡 Bular haqida 99% odamlar bilmaydi! Super foydali AI xaklari ⚡️\n\n"
+                "Telefoningiz yoki kompyuteringizda bo'lishi kerak bo'lgan qudratli vositalar:\n"
+                "✅ Har qanday savolga aniq javob beruvchi neyrotarmoqlar\n"
+                "✅ Bepul o'rganish va professional ko'nikmalar\n"
+                "✅ Vaqtingizni tejovchi yechimlar\n\n"
+                "💎 Do'stlaringizga ham ulashing: @test_aibot"
             ),
         ],
         "caption": (
-            "✨ Har bir dasturchining noutbukida bo'lishi kerak bo'lgan super vositalar! 💻🖤\n\n"
-            "Ish muhitini (workflow) maksimal qulay va chiroyli qilish sirlari:\n"
-            "✅ Dark aesthetic kod muhiti va mavzular\n"
-            "✅ Foydali VS Code va terminal plaginlari\n"
-            "✅ Ish unumdorligini (Productivity) oshiruvchi vositalar\n\n"
-            "🔥 Eng so'nggi IT trendlar uchun bizga qo'shiling: @coder_bahrom"
+            "✨ Har bir inson bilishi shart bo'lgan aqlbovar qilmas AI saytlari! 🤖🔥\n\n"
+            "Ushbu neyrotarmoqlar orqali hayotingizni 10 baravar yengillashtiring:\n"
+            "✅ Dizayn va rasmlarni sekundlarda yaratish\n"
+            "✅ Murakkab ma'lumotlarni 1 daqiqada konspekt qilish\n"
+            "✅ Eng so'nggi zamonaviy sun'iy intellekt yangiliklari\n\n"
+            "🚀 Obuna bo'ling va eng birinchilardan bo'lib o'rganing: @test_aibot"
         ),
-        "hashtags": ["developertools", "codingsetup", "dasturchi", "ituz", "coder", "programmer"],
-    },
-    {
-        "time": "20:30",
-        "label": "🌙 Kechki Rek #2 (20:30)",
-        "niche": "Linux & Axborot Xavfsizligi Vositalari",
-        "search_tags": [
-            "kalilinux", "ethicalhacking", "cybersecurity", "securitytools", "infosec",
-        ],
-        "captions": [
-            (
-                "🛡 Linux va Axborot Xavfsizligi (Ethical Hacking) vositalari! ⚡️💻\n\n"
-                "Xavfsizlik mutaxassislari va kiberxavfsizlikka qiziquvchilar uchun ochiq kodli vositalar:\n"
-                "✅ Tarmoq tahlili va zaifliklarni aniqlash\n"
-                "✅ Linux tizimlarida xavfsizlikni kuchaytirish\n"
-                "✅ Ochiq manbali kiberhimoya vositalari\n\n"
-                "⚠️ Ma'lumotlar faqat o'quv va himoyalanish maqsadida taqdim etiladi.\n"
-                "Obuna bo'ling: @coder_bahrom"
-            ),
-            (
-                "🔒 Tizimni xakerlardan himoya qilish uchun qaysi vositalar kerak? 🛡⚡️\n\n"
-                "Ochiq kodli eng mashhur xavfsizlik skriptlari va vositalari:\n"
-                "✅ Kali Linux va ochiq terminal asboblari\n"
-                "✅ Zaif nuqtalarni topish va himoyalash\n"
-                "✅ Kiberxavfsizlik bo'yicha amaliy bilimlar\n\n"
-                "🚀 Kiberolam va IT yangiliklari: @coder_bahrom"
-            ),
-        ],
-        "caption": (
-            "🛡 Linux va Axborot Xavfsizligi (Ethical Hacking) vositalari! ⚡️💻\n\n"
-            "Xavfsizlik mutaxassislari va kiberxavfsizlikka qiziquvchilar uchun ochiq kodli vositalar:\n"
-            "✅ Tarmoq tahlili va zaifliklarni aniqlash\n"
-            "✅ Linux tizimlarida xavfsizlikni kuchaytirish\n"
-            "✅ Ochiq manbali kiberhimoya vositalari\n\n"
-            "⚠️ Ma'lumotlar faqat o'quv va himoyalanish maqsadida taqdim etiladi.\n"
-            "Obuna bo'ling: @coder_bahrom"
-        ),
-        "hashtags": ["cybersecurity", "linux", "kalilinux", "infosec", "dasturlash", "ituz", "xavfsizlik"],
+        "hashtags": ["aitools", "suniyintellekt", "kelajak", "foydalisaytlar", "texnologiya", "reelsuz"],
     },
 ]
 
@@ -650,13 +562,14 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             W, H = 1080, 1920
             wm = Image.new("RGBA", (W, H), (0, 0, 0, 0))
             d = ImageDraw.Draw(wm)
-            lx, ly, ls = 44, 232, 40
-            name_w = d.textlength("@coder_bahrom", font=font_wm)
+            my_uname = str(getattr(cl, "username", "") or "test_aibot")
+            wm_tag = f"@{my_uname}"
+            name_w = d.textlength(wm_tag, font=font_wm)
             d.rounded_rectangle([lx - 10, ly - 8, lx + ls + 22 + name_w, ly + ls + 8], radius=24, fill=(0, 0, 0, 110))
             d.rounded_rectangle([lx, ly, lx + ls, ly + ls], radius=11, outline=(255, 255, 255, 230), width=3)
             d.ellipse([lx + 11, ly + 11, lx + ls - 11, ly + ls - 11], outline=(255, 255, 255, 230), width=3)
             d.ellipse([lx + ls - 11, ly + 6, lx + ls - 6, ly + 11], fill=(255, 255, 255, 230))
-            d.text((lx + ls + 12, ly + ls // 2), "@coder_bahrom", font=font_wm, fill=(255, 255, 255, 240), anchor="lm")
+            d.text((lx + ls + 12, ly + ls // 2), wm_tag, font=font_wm, fill=(255, 255, 255, 240), anchor="lm")
             wm.save(wm_path)
         except Exception as exc:
             log.warning("Watermark error: %s", exc)
