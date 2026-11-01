@@ -163,12 +163,14 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
                 cap.release()
                 return False, f"static slide/low motion graphic (diff={diff:.1f} < 1.5)"
 
-            # Check for letterbox black padding bars on top or bottom
+            # Check for genuine letterbox black padding bars on top or bottom
+            # (A true letterbox bar has near-zero pixel variance across the entire row, unlike dark UI)
             gray1 = cv2.cvtColor(f1, cv2.COLOR_BGR2GRAY)
+            row_stds = np.std(gray1, axis=1)
             row_means = np.mean(gray1, axis=1)
-            top_black = sum(1 for rm in row_means[:int(h * 0.35)] if rm < 12.0)
-            bot_black = sum(1 for rm in row_means[int(h * 0.65):] if rm < 12.0)
-            if (top_black / h > 0.08) or (bot_black / h > 0.08):
+            top_black = sum(1 for i, (rm, rstd) in enumerate(zip(row_means[:int(h * 0.35)], row_stds[:int(h * 0.35)])) if rm < 6.0 and rstd < 4.0)
+            bot_black = sum(1 for i, (rm, rstd) in enumerate(zip(row_means[int(h * 0.65):], row_stds[int(h * 0.65):])) if rm < 6.0 and rstd < 4.0)
+            if (top_black / h > 0.12) or (bot_black / h > 0.12):
                 cap.release()
                 return False, f"letterboxed video with black padding bars (top={top_black/h*100:.1f}%, bot={bot_black/h*100:.1f}%)"
 
@@ -195,20 +197,20 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
             small = cv2.resize(frame, (int(fw * scale), int(fh * scale)))
             gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
 
-            # Cascade face check
+            # Cascade face check (minNeighbors=5, minSize=(42, 42) to prevent false positives on UI icons)
             for c_name, casc in cascades:
-                faces = casc.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=3, minSize=(28, 28))
+                faces = casc.detectMultiScale(gray, scaleFactor=1.15, minNeighbors=5, minSize=(42, 42))
                 if len(faces) > 0:
                     cap.release()
                     return False, f"human face detected ({c_name} at {int(pt*100)}%)"
 
             # Center skin check
             sh, sw = small.shape[:2]
-            center = small[int(sh * 0.12):int(sh * 0.88), int(sw * 0.15):int(sw * 0.85)]
+            center = small[int(sh * 0.15):int(sh * 0.85), int(sw * 0.15):int(sw * 0.85)]
             ycrcb = cv2.cvtColor(center, cv2.COLOR_BGR2YCrCb)
             skin_mask = cv2.inRange(ycrcb, np.array([0, 133, 77]), np.array([255, 173, 127]))
             skin_ratio = float(np.count_nonzero(skin_mask)) / float(skin_mask.shape[0] * skin_mask.shape[1])
-            if skin_ratio > 0.11:
+            if skin_ratio > 0.22:
                 cap.release()
                 return False, f"human skin/body detected ({skin_ratio*100:.1f}% at {int(pt*100)}%)"
 
@@ -226,7 +228,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "☀️ Kunduzgi Rek #1 (11:00)",
         "niche": "Top AI Saytlar & Hayotiy Xaklar",
         "search_tags": [
-            "aitools", "aiwebsite", "usefulwebsites", "productivitytools",
+            "usefulwebsites", "aiwebsite", "aitools", "productivitytools", "websitesyouneed", "chatgpt",
         ],
         "captions": [
             (
@@ -454,11 +456,11 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             except Exception as exc:
                 log.debug("hashtag top search %s warning: %s", tag, exc)
 
-            if len(candidates) >= 5:
+            if len(candidates) >= 15:
                 break
 
         # Fallback: if hashtag search yielded few candidates, check explore reels
-        if len(candidates) < 3:
+        if len(candidates) < 5:
             try:
                 exp_reels = cl.explore_reels(amount=10)
                 for m in exp_reels:
@@ -565,6 +567,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             my_uname = str(getattr(cl, "username", "") or "test_aibot")
             wm_tag = f"@{my_uname}"
             name_w = d.textlength(wm_tag, font=font_wm)
+            lx, ly, ls = 48, 160, 32
             d.rounded_rectangle([lx - 10, ly - 8, lx + ls + 22 + name_w, ly + ls + 8], radius=24, fill=(0, 0, 0, 110))
             d.rounded_rectangle([lx, ly, lx + ls, ly + ls], radius=11, outline=(255, 255, 255, 230), width=3)
             d.ellipse([lx + 11, ly + 11, lx + ls - 11, ly + ls - 11], outline=(255, 255, 255, 230), width=3)
