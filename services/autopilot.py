@@ -208,11 +208,68 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
         return True, ""
 
 
-# 3 daily optimal Rek slots in Asia/Tashkent (Mega-Viral Supercars, BMW M, Mercedes AMG & Night Drive Edition):
+# 5 daily optimal Rek slots in Asia/Tashkent (00:00, 08:00, 11:00, 15:00, 20:00 - Mega-Viral Supercars Edition):
 DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
     {
+        "time": "00:00",
+        "label": "🌌 Tun Yarmi Rek #1 (00:00)",
+        "niche": "Tungi Shahar, Night Drive & JDM Atmosfera",
+        "search_tags": [
+            "nightdrive", "caredit", "caredits", "bmwm5", "cls63", "jdmcars", "supercars", "sportscar",
+        ],
+        "captions": [
+            (
+                "Tungi shahar, sokin ko'chalar va orzudagi mashina... 🌌🏎🔥\n\n"
+                "Kechasi kim bilan shunday aylanishni xohlardingiz? Belgilang 👇\n\n"
+                "📌 Kayfiyat uchun saqlab oling va ulashing!\n"
+                "🏁 Obuna bo'ling: @test_aibot"
+            ),
+            (
+                "Tun yarmidagi haqiqiy drive atmosferasi! 🌙🔊\n\n"
+                "Ovozini baland qilib oxirigacha eshiting! 🔥⚡️\n\n"
+                "💬 1 dan 10 gacha necha ball berasiz? 👇\n"
+                "🏎 @test_aibot"
+            ),
+        ],
+        "caption": (
+            "Tungi shahar, sokin ko'chalar va orzudagi mashina... 🌌🏎🔥\n\n"
+            "Kechasi kim bilan shunday aylanishni xohlardingiz? Belgilang 👇\n\n"
+            "📌 Kayfiyat uchun saqlab oling va ulashing!\n"
+            "🏁 Obuna bo'ling: @test_aibot"
+        ),
+        "hashtags": ["nightdrive", "caredit", "bmw", "mercedes", "mashina", "rek", "uzbekistan", "toshkent"],
+    },
+    {
+        "time": "08:00",
+        "label": "🌅 Ertalabki Rek #2 (08:00)",
+        "niche": "Tonggi Motivatsiya, Lamborghini, Ferrari & Audi RS",
+        "search_tags": [
+            "supercars", "lamborghini", "ferrari", "audirs6", "audirs7", "hypercars", "luxurycars", "caredit",
+        ],
+        "captions": [
+            (
+                "Xayrli tong! Har birimizga shunday mashina minish nasib qilsin! 🌅🏎🤲\n\n"
+                "Orzularingiz uchun harakat qilishdan to'xtamang! 🔥⚡️\n\n"
+                "📲 Eng yaqin jigarlaringizga yuborib, ularga ham tilab qo'ying!\n"
+                "🚀 @test_aibot"
+            ),
+            (
+                "Tongni haqiqiy motivatsiya va qudratli ovoz bilan boshlaymiz! ☀️🔊\n\n"
+                "Qaysi mashina sizning asosiy maqsadingiz? Izohda yozing 👇\n\n"
+                "🏁 Eng sara avto videolar: @test_aibot"
+            ),
+        ],
+        "caption": (
+            "Xayrli tong! Har birimizga shunday mashina minish nasib qilsin! 🌅🏎🤲\n\n"
+            "Orzularingiz uchun harakat qilishdan to'xtamang! 🔥⚡️\n\n"
+            "📲 Eng yaqin jigarlaringizga yuborib, ularga ham tilab qo'ying!\n"
+            "🚀 @test_aibot"
+        ),
+        "hashtags": ["supercars", "lamborghini", "motivatsiya", "mashinalar", "avtouz", "rek", "uzbekistan", "reelsuz"],
+    },
+    {
         "time": "11:00",
-        "label": "☀️ Kunduzgi Rek #1 (11:00)",
+        "label": "☀️ Kunduzgi Rek #3 (11:00)",
         "niche": "BMW M-Power & Agressiv Avto Editlar",
         "search_tags": [
             "bmwm5", "bmwm4", "bmwm3", "caredit", "caredits", "mpower", "bimmer", "sportscar",
@@ -694,7 +751,7 @@ async def _dispatch_github_cloud_autopilot_if_due() -> None:
     global _LAST_DISPATCHED_HOUR_KEY, _LAST_DISPATCH_TS
     tz = ZoneInfo(config.TZ)
     now_local = datetime.now(timezone.utc).astimezone(tz)
-    if now_local.hour not in (11, 15, 20):
+    if now_local.hour not in (0, 8, 11, 15, 20):
         return
     now_ts = time.time()
     hour_key = f"{now_local.strftime('%Y-%m-%d')}:{now_local.hour:02d}"

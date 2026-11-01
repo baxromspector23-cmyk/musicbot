@@ -23,8 +23,8 @@ _TZ = ZoneInfo("Asia/Tashkent")
 # 24-hour marathon: 1 Reel every hour
 MARATHON_START = datetime(2026, 10, 30, 0, 0, tzinfo=_TZ)
 MARATHON_END = datetime(2026, 10, 31, 0, 0, tzinfo=_TZ)
-# Regular posting hours outside the marathon (Tashkent: 11:00, 15:00, 20:00)
-REGULAR_HOURS = {11, 15, 20}
+# Regular posting hours outside the marathon (Tashkent: 00:00, 08:00, 11:00, 15:00, 20:00)
+REGULAR_HOURS = {0, 8, 11, 15, 20}
 
 
 async def send_marathon_report(st: dict) -> None:
@@ -121,16 +121,20 @@ async def restore_session_from_env() -> None:
 
 
 def pick_slot_index_for_now() -> int:
-    """Choose slot index based on current Asia/Tashkent hour (11:00 -> 0, 15:00 -> 1, 20:00 -> 2)."""
+    """Choose slot index based on current Asia/Tashkent hour (00->0, 08->1, 11->2, 15->3, 20->4)."""
     tz = ZoneInfo(config.TZ)
     now_local = datetime.now(timezone.utc).astimezone(tz)
     local_hour = now_local.hour
 
-    if local_hour < 13:
+    if local_hour < 4:
         return 0
-    if local_hour < 18:
+    if local_hour < 10:
         return 1
-    return 2
+    if local_hour < 13:
+        return 2
+    if local_hour < 18:
+        return 3
+    return 4
 
 
 async def main() -> None:

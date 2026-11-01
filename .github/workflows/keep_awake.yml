@@ -62,8 +62,8 @@ jobs:
               h, m = now_tash.hour, now_tash.minute
               day_str = now_tash.strftime("%Y-%m-%d")
 
-              # Trigger at :00 (primary) and :12 (backup retry) for 11:00, 15:00, 20:00 Tashkent
-              if h in (11, 15, 20) and m in (0, 1, 12, 13):
+              # Trigger at :00 (primary) and :12 (backup retry) for 00:00, 08:00, 11:00, 15:00, 20:00 Tashkent
+              if h in (0, 8, 11, 15, 20) and m in (0, 1, 12, 13):
                   slot_window = "primary" if m < 5 else "backup"
                   trig_key = f"{day_str}:{h:02d}:{slot_window}"
                   if trig_key not in dispatched:

@@ -23,7 +23,7 @@ jobs:
         run: |
           HOUR=$(TZ="Asia/Tashkent" date +%H)
           echo "Current Tashkent hour: $HOUR (event: ${{ github.event_name }})"
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "$HOUR" != "11" ] && [ "$HOUR" != "15" ] && [ "$HOUR" != "20" ]; then
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$HOUR" != "00" ] && [ "$HOUR" != "08" ] && [ "$HOUR" != "11" ] && [ "$HOUR" != "15" ] && [ "$HOUR" != "20" ]; then
             echo "should_run=false" >> $GITHUB_OUTPUT
           else
             echo "should_run=true" >> $GITHUB_OUTPUT
