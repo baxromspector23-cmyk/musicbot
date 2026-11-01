@@ -41,14 +41,12 @@ INDIAN_AND_UNWANTED_KEYWORDS: set[str] = {
     "nair", "joshi", "mehta", "shah", "das", "roy", "mishra", "pandey", "tiwari", "babu",
     "chaurasia", "deshmukh", "shukla", "agarwal", "bhat", "chaudhary", "mukherjee", "khan",
     "kapoor", "malhotra", "jain", "bhatia", "dhar", "khatri", "rajasthan", "gujarat", "punjab",
-    "kerala", "tamilnadu", "karnataka", "maharashtra", "haryana", "bihar", "up", "bengal",
-    # Talking-head / influencer / course spam indicators (NO human talking heads allowed)
-    "roadmap", "interview", "salary", "placement", "college", "student", "resume",
-    "coach", "mentor", "internship", "hiring", "course", "degree", "lecture", "tutorial",
-    "explaining", "explain", "listen", "tips",
+    "kerala", "tamilnadu", "karnataka", "maharashtra", "haryana", "bihar", "bengal",
+    # Indian campus / placement spam indicators
+    "placement", "internship", "coaching",
     # Abstract motion design / 3D renders / non-coding art (NO abstract animations like ASTROLAB)
     "astrolabs", "astrolab", "pixelart", "retrofuture", "scifiart", "cyberpunkart", "blender3d",
-    "aftereffects", "motiongraphics", "motiondesign", "cinema4d", "vfx", "render", "3danimation",
+    "aftereffects", "motiongraphics", "motiondesign", "cinema4d", "vfx", "3danimation",
     "lofi", "aestheticbeats", "chillvibes", "wallpaper", "poster", "graphicdesign",
     # Foreign language rejection (ONLY English, Uzbek, and Russian creators allowed)
     # Spanish & Portuguese:
@@ -266,7 +264,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🚀 Peshin Rek #2 (15:00)",
         "niche": "Talabalar va Frilanserlar uchun Super AI",
         "search_tags": [
-            "aitips", "techhacks", "artificialintelligence", "futuretech",
+            "aiwebsite", "usefulwebsites", "productivitytools", "websitesyouneed", "aitools",
         ],
         "captions": [
             (
@@ -431,7 +429,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         tags_to_try = list(search_tags)
         random.shuffle(tags_to_try)
 
-        for tag in tags_to_try:
+        for tag in tags_to_try[:2]:
             try:
                 medias = cl.hashtag_medias_top_v1(tag, amount=9)
                 for m in medias:
@@ -456,31 +454,8 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
             except Exception as exc:
                 log.debug("hashtag top search %s warning: %s", tag, exc)
 
-            if len(candidates) >= 15:
+            if len(candidates) >= 8:
                 break
-
-        # Fallback: if hashtag search yielded few candidates, check explore reels
-        if len(candidates) < 5:
-            try:
-                exp_reels = cl.explore_reels(amount=10)
-                for m in exp_reels:
-                    code = str(getattr(m, "code", "") or "")
-                    dur = float(getattr(m, "video_duration", 0) or 0)
-                    mtype = int(getattr(m, "media_type", 0) or 0)
-                    owner_pk = str(getattr(getattr(m, "user", None), "pk", "") or "")
-                    if (
-                        mtype == 2
-                        and 8.0 <= dur <= 30.0
-                        and code
-                        and code not in used_codes
-                        and code not in existing_codes
-                        and owner_pk != my_uid
-                        and not any(abs(ed - dur) < 0.35 for ed in existing_durations)
-                        and not is_unwanted_content(m)
-                    ):
-                        candidates.append(m)
-            except Exception as exc:
-                log.debug("explore_reels fallback warning: %s", exc)
 
         if not candidates:
             raise RuntimeError("Mos va takrorlanmas video topilmadi, keyingi urinishda qayta qidiriladi.")
@@ -692,7 +667,8 @@ async def ensure_daily_autopilot_posts(bot: Bot, notify_owner: bool = True) -> l
                     if not media_obj:
                         continue
 
-                    full_caption = f"{spec['caption']}\n\n{' '.join('#' + t for t in spec['hashtags'])}"
+                    chosen_cap = vid_info.get("caption") or spec["caption"]
+                    full_caption = f"{chosen_cap}\n\n{' '.join('#' + t for t in spec['hashtags'])}"
                     post = await db.create_post(
                         owner_id=config.OWNER_ID,
                         storage_chat_id=storage_chat,
@@ -710,10 +686,13 @@ async def ensure_daily_autopilot_posts(bot: Bot, notify_owner: bool = True) -> l
                     )
                     created_posts.append(post)
                     existing_times.append(slot_utc)
+                    # Prepare at most 1 slot per 30-min tick to keep Instagram API traffic gentle and human-paced
+                    break
                 finally:
                     norm_path.unlink(missing_ok=True)
             except Exception as exc:
                 log.warning("Autopilot slot %s preparation failed: %s", spec["time"], exc)
+                break
 
         if created_posts and notify_owner:
             lines = ["🤖 <b>Avtopilot: Kunlik 4 ta «Rek» vaqtiga yangi videolar topildi va rejalashtirildi!</b>\n"]
