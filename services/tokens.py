@@ -17,15 +17,14 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+import base64 as _b64
+
 _KEY = config.TOKEN_ENC_KEY
+_DERIVED_FERNET = Fernet(_b64.urlsafe_b64encode(hashlib.sha256((config.BOT_TOKEN + ":fernet-salt").encode("utf-8")).digest()))
 try:
     _FERNET = Fernet(_KEY.encode("ascii"))
 except Exception:
-    # If the key provided in config is invalid, derive a valid key
-    import base64
-    import hashlib
-    derived = hashlib.sha256((config.BOT_TOKEN + ":fernet-salt").encode("utf-8")).digest()
-    _FERNET = Fernet(base64.urlsafe_b64encode(derived))
+    _FERNET = _DERIVED_FERNET
 
 
 def encrypt_token(plain: str) -> str:
@@ -34,8 +33,11 @@ def encrypt_token(plain: str) -> str:
 
 
 def decrypt_token(cipher_text: str) -> str:
-    """Decrypt a Fernet cipher text into a plain token."""
-    return _FERNET.decrypt(cipher_text.encode("ascii")).decode("utf-8")
+    """Decrypt a Fernet cipher text into a plain token (with BOT_TOKEN-derived key fallback)."""
+    try:
+        return _FERNET.decrypt(cipher_text.encode("ascii")).decode("utf-8")
+    except InvalidToken:
+        return _DERIVED_FERNET.decrypt(cipher_text.encode("ascii")).decode("utf-8")
 
 
 def redact_token(text: str) -> str:

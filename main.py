@@ -219,7 +219,9 @@ async def tick(request: web.Request) -> web.Response:
         except Exception:
             pass
 
-    if not config.TICK_SECRET or secret != config.TICK_SECRET:
+    import hashlib as _hl
+    derived_tick = _hl.sha256((config.BOT_TOKEN + ":tick-secret").encode("utf-8")).hexdigest()[:32]
+    if not secret or (secret != config.TICK_SECRET and secret != derived_tick):
         return web.Response(status=401, text="unauthorized")
 
     if isinstance(json_payload, dict):

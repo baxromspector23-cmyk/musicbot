@@ -1,6 +1,10 @@
-name: Cloud Autopilot Reels (5x Daily Rek)
+name: Cloud Autopilot Reels (3x Daily Rek)
 
 on:
+  schedule:
+    # 11:00, 15:00, 20:00 Asia/Tashkent (UTC+5) = 06:00, 10:00, 15:00 UTC
+    # Primary tick at :03 and backup tick at :25 (skips automatically if :03 already posted)
+    - cron: "3,25 6,10,15 * * *"
   workflow_dispatch:
     inputs:
       mode:

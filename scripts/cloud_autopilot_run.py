@@ -23,8 +23,8 @@ _TZ = ZoneInfo("Asia/Tashkent")
 # 24-hour marathon: 1 Reel every hour
 MARATHON_START = datetime(2026, 10, 30, 0, 0, tzinfo=_TZ)
 MARATHON_END = datetime(2026, 10, 31, 0, 0, tzinfo=_TZ)
-# Regular posting hours outside the marathon (Tashkent)
-REGULAR_HOURS = {9, 11, 12, 18, 20}
+# Regular posting hours outside the marathon (Tashkent: 11:00, 15:00, 20:00)
+REGULAR_HOURS = {11, 15, 20}
 
 
 async def send_marathon_report(st: dict) -> None:
@@ -99,7 +99,7 @@ async def send_marathon_report(st: dict) -> None:
 
 
 async def restore_session_from_env() -> None:
-    """Restore ig_direct_session from IG_DIRECT_SESSION_B64 secret in cloud environments."""
+    """Restore ig_direct_session from IG_DIRECT_SESSION_B64 secret in cloud environments and sync to Render."""
     b64_raw = os.getenv("IG_DIRECT_SESSION_B64", "").strip()
     if not b64_raw:
         return
@@ -107,33 +107,46 @@ async def restore_session_from_env() -> None:
         decoded = base64.b64decode(b64_raw).decode("utf-8")
         sess_obj = json.loads(decoded)
         if isinstance(sess_obj, dict):
-            await db.set_kv("ig_direct_session", sess_obj)
+            if "encrypted_settings" in sess_obj:
+                await db.set_kv("ig_direct_session", sess_obj)
+            else:
+                await ig_direct.save_direct_session(
+                    sess_obj,
+                    username=str(sess_obj.get("_username") or "test_aibot"),
+                    user_id=str(sess_obj.get("_user_id") or "15317682957"),
+                )
             log.info("Restored ig_direct_session from IG_DIRECT_SESSION_B64 environment secret")
+            # Keep Render server synced with active session
+            try:
+                import urllib.request
+                kv_rec = await db.get_kv("ig_direct_session")
+                if kv_rec and config.TICK_SECRET:
+                    payload = json.dumps({"secret": config.TICK_SECRET, "sync_ig_session": kv_rec}).encode("utf-8")
+                    req = urllib.request.Request(
+                        "https://musicbot-yy58.onrender.com/tick",
+                        data=payload,
+                        headers={"Content-Type": "application/json"},
+                        method="POST",
+                    )
+                    urllib.request.urlopen(req, timeout=15).read()
+                    log.info("Synced ig_direct_session to Render server")
+            except Exception as sync_exc:
+                log.debug("Render session sync warning: %s", sync_exc)
     except Exception as exc:
         log.warning("Failed to decode IG_DIRECT_SESSION_B64: %s", exc)
 
 
 def pick_slot_index_for_now() -> int:
-    """Choose slot index based on current Asia/Tashkent hour/minute."""
+    """Choose slot index based on current Asia/Tashkent hour (11:00 -> 0, 15:00 -> 1, 20:00 -> 2)."""
     tz = ZoneInfo(config.TZ)
     now_local = datetime.now(timezone.utc).astimezone(tz)
     local_hour = now_local.hour
-    local_min = now_local.minute
 
-    # 09:00 -> Slot 0 (Restoran va Kafe)
-    if local_hour < 10:
+    if local_hour < 13:
         return 0
-    # 11:00 -> Slot 1 (Kompaniya va Veb-Sayt)
-    if local_hour == 10 or (local_hour == 11 and local_min < 30):
+    if local_hour < 18:
         return 1
-    # 12:00 -> Slot 2 (Zamonaviy UI/UX va Interaktiv Saytlar)
-    if (local_hour == 11 and local_min >= 30) or local_hour in (12, 13, 14):
-        return 2
-    # 18:30 -> Slot 3 (Do'konlar uchun Internet-Do'kon)
-    if local_hour < 19:
-        return 3
-    # 20:30 -> Slot 4 (Telegram Bot va Avtomatlashtirish)
-    return 4
+    return 2
 
 
 async def main() -> None:
@@ -142,6 +155,13 @@ async def main() -> None:
 
     await db.init_db()
     await restore_session_from_env()
+
+    now_utc = datetime.now(timezone.utc)
+    now_local = now_utc.astimezone(_TZ)
+    if not force_post and not check_only:
+        if not (MARATHON_START <= now_local < MARATHON_END) and now_local.hour not in REGULAR_HOURS:
+            log.info("Not a posting hour (%02d:00); skipping without hitting Instagram API.", now_local.hour)
+            return
 
     st = await ig_direct.get_live_profile_stats(limit=10)
     log.info(
@@ -154,8 +174,7 @@ async def main() -> None:
         return
 
     # Guard against duplicate posting in the same hour
-    now_utc = datetime.now(timezone.utc)
-    _now_l = now_utc.astimezone(_TZ)
+    _now_l = now_local
     is_report_time = MARATHON_END <= _now_l < MARATHON_END + timedelta(minutes=59)
     if not force_post and not is_report_time and st["items"]:
         latest = st["items"][0]
@@ -166,26 +185,15 @@ async def main() -> None:
             taken_local = taken_at.astimezone(_TZ)
             age_minutes = (now_utc - taken_at).total_seconds() / 60.0
             log.info("Latest Instagram Reel (%s) was posted %.1f minutes ago (%s)", latest["code"], age_minutes, taken_local.strftime("%H:%M"))
-            if (taken_local.date() == _now_l.date() and taken_local.hour == _now_l.hour) or age_minutes < 20:
+            if (taken_local.date() == _now_l.date() and taken_local.hour == _now_l.hour) or age_minutes < 45:
                 log.info("Already posted in hour %02d:00 (%.1f min ago); skipping duplicate.", _now_l.hour, age_minutes)
                 return
 
     slot_idx = pick_slot_index_for_now()
-    tz = ZoneInfo(config.TZ)
-    now_local = datetime.now(timezone.utc).astimezone(tz)
 
     if MARATHON_START <= now_local < MARATHON_END:
         slot_idx = now_local.hour % len(autopilot.DAILY_SLOTS_SPEC)
         log.info("24h marathon: hourly post #%d (slot %d)", now_local.hour + 1, slot_idx)
-
-    if not force_post:
-        # Final stats report right after the marathon ends
-        if now_local >= MARATHON_END and now_local < MARATHON_END + timedelta(minutes=59):
-            await send_marathon_report(st)
-            return
-        if not (MARATHON_START <= now_local < MARATHON_END) and now_local.hour not in REGULAR_HOURS:
-            log.info("Not a posting hour (%02d:00); skipping.", now_local.hour)
-            return
 
     for i, arg in enumerate(sys.argv):
         if arg == "--slot" and i + 1 < len(sys.argv):

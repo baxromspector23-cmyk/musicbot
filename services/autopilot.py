@@ -195,9 +195,9 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
             small = cv2.resize(frame, (int(fw * scale), int(fh * scale)))
             gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
 
-            # Cascade face check (minNeighbors=5, minSize=(42, 42) to prevent false positives on UI icons)
+            # Cascade face check (minNeighbors=6, minSize=(52, 52) on 270x480 to reject talking heads without UI icon false positives)
             for c_name, casc in cascades:
-                faces = casc.detectMultiScale(gray, scaleFactor=1.15, minNeighbors=5, minSize=(42, 42))
+                faces = casc.detectMultiScale(gray, scaleFactor=1.16, minNeighbors=6, minSize=(52, 52))
                 if len(faces) > 0:
                     cap.release()
                     return False, f"human face detected ({c_name} at {int(pt*100)}%)"
@@ -226,7 +226,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "☀️ Kunduzgi Rek #1 (11:00)",
         "niche": "Top AI Saytlar & Hayotiy Xaklar",
         "search_tags": [
-            "usefulwebsites", "aiwebsite", "aitools", "productivitytools", "websitesyouneed", "chatgpt",
+            "uiux", "framer", "interactiondesign", "webdesign", "aitools", "usefulwebsites",
         ],
         "captions": [
             (
@@ -264,7 +264,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🚀 Peshin Rek #2 (15:00)",
         "niche": "Talabalar va Frilanserlar uchun Super AI",
         "search_tags": [
-            "aiwebsite", "usefulwebsites", "productivitytools", "websitesyouneed", "aitools",
+            "appdesign", "uidesign", "framer", "webdevelopment", "productivitytools", "aiwebsite",
         ],
         "captions": [
             (
@@ -299,7 +299,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🌙 Kechki Rek #3 (20:00)",
         "niche": "1 daqiqada natija beruvchi Super Saytlar",
         "search_tags": [
-            "usefulwebsites", "aitools", "aiwebsite", "chatgpt",
+            "interactiondesign", "threejs", "creativecoding", "uiuxdesign", "aitools", "usefulwebsites",
         ],
         "captions": [
             (
@@ -425,15 +425,20 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         except Exception as exc:
             log.warning("Could not fetch profile medias for duplicate guard: %s", exc)
 
-        candidates: list[Any] = []
         tags_to_try = list(search_tags)
         random.shuffle(tags_to_try)
 
-        for tag in tags_to_try[:2]:
+        chosen = None
+        dl_path = None
+        code = ""
+        seen_codes: set[str] = set()
+
+        for tag in tags_to_try[:3]:
+            tag_cands: list[Any] = []
             try:
                 medias = cl.hashtag_medias_top_v1(tag, amount=9)
                 for m in medias:
-                    code = str(getattr(m, "code", "") or "")
+                    c_code = str(getattr(m, "code", "") or "")
                     dur = float(getattr(m, "video_duration", 0) or 0)
                     mtype = int(getattr(m, "media_type", 0) or 0)
                     owner_pk = str(getattr(getattr(m, "user", None), "pk", "") or "")
@@ -443,73 +448,58 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                         mtype == 2
                         and 8.0 <= dur <= 30.0
                         and (plays >= 100 or likes >= 5)
-                        and code
-                        and code not in used_codes
-                        and code not in existing_codes
+                        and c_code
+                        and c_code not in used_codes
+                        and c_code not in existing_codes
+                        and c_code not in seen_codes
                         and owner_pk != my_uid
                         and not any(abs(ed - dur) < 0.35 for ed in existing_durations)
                         and not is_unwanted_content(m)
                     ):
-                        candidates.append(m)
+                        seen_codes.add(c_code)
+                        tag_cands.append(m)
             except Exception as exc:
                 log.debug("hashtag top search %s warning: %s", tag, exc)
+                continue
 
-            if len(candidates) >= 8:
+            # Sort by engagement (views + likes * 10) in STRICT descending order (top viral first!)
+            tag_cands.sort(
+                key=lambda x: int(getattr(x, "play_count", 0) or 0) + int(getattr(x, "like_count", 0) or 0) * 10,
+                reverse=True,
+            )
+
+            for candidate in tag_cands:
+                cand_code = str(candidate.code)
+                v_url = getattr(candidate, "video_url", None)
+                if v_url:
+                    cand_dl = Path(cl.video_download_by_url(str(v_url), filename=f"cand_{cand_code}.mp4", folder=temp_dir))
+                else:
+                    cand_dl = Path(cl.video_download(candidate.pk, folder=temp_dir))
+
+                # 1. Sound check: Video MUST have original audio / music
+                if not video_has_audio(cand_dl):
+                    log.warning("REJECTED candidate %s: NO AUDIO (video must have sound/music)", cand_code)
+                    cand_dl.unlink(missing_ok=True)
+                    used_codes.add(cand_code)
+                    continue
+
+                # 2. Strict Quality & Content check: Native 9:16 vertical, Dynamic motion, 100% Faceless
+                ok, reason = verify_video_content(cand_dl)
+                if not ok:
+                    log.warning("REJECTED candidate %s: %s", cand_code, reason)
+                    cand_dl.unlink(missing_ok=True)
+                    used_codes.add(cand_code)
+                    continue
+
+                # Candidate passed all checks!
+                log.info("APPROVED candidate %s: 100%% native vertical, dynamic, faceless video with sound!", cand_code)
+                chosen = candidate
+                code = cand_code
+                dl_path = cand_dl
                 break
 
-        if not candidates:
-            raise RuntimeError("Mos va takrorlanmas video topilmadi, keyingi urinishda qayta qidiriladi.")
-
-        # Deduplicate candidates by code
-        unique_cands: dict[str, Any] = {}
-        for m in candidates:
-            c = str(getattr(m, "code", ""))
-            if c and c not in unique_cands:
-                unique_cands[c] = m
-        cands_list = list(unique_cands.values())
-
-        # Sort by engagement (views + likes * 10) in STRICT descending order (top viral first!)
-        cands_list.sort(
-            key=lambda x: int(getattr(x, "play_count", 0) or 0) + int(getattr(x, "like_count", 0) or 0) * 10,
-            reverse=True,
-        )
-
-        chosen = None
-        dl_path = None
-        code = ""
-
-        # Strictly verify in order of virality (top viral hits first! DO NOT SHUFFLE!)
-        for candidate in cands_list[:30]:
-            cand_code = str(candidate.code)
-            plays = getattr(candidate, "play_count", 0)
-            likes = getattr(candidate, "like_count", 0)
-            v_url = getattr(candidate, "video_url", None)
-            if v_url:
-                cand_dl = Path(cl.video_download_by_url(str(v_url), filename=f"cand_{cand_code}.mp4", folder=temp_dir))
-            else:
-                cand_dl = Path(cl.video_download(candidate.pk, folder=temp_dir))
-
-            # 1. Sound check: Video MUST have original audio / music
-            if not video_has_audio(cand_dl):
-                log.warning("REJECTED candidate %s: NO AUDIO (video must have sound/music)", cand_code)
-                cand_dl.unlink(missing_ok=True)
-                used_codes.add(cand_code)
-                continue
-
-            # 2. Strict Quality & Content check: Native 9:16 vertical, Dynamic motion, 100% Faceless
-            ok, reason = verify_video_content(cand_dl)
-            if not ok:
-                log.warning("REJECTED candidate %s: %s", cand_code, reason)
-                cand_dl.unlink(missing_ok=True)
-                used_codes.add(cand_code)
-                continue
-
-            # Candidate passed all checks!
-            log.info("APPROVED candidate %s: 100%% native vertical, dynamic, faceless video with sound!", cand_code)
-            chosen = candidate
-            code = cand_code
-            dl_path = cand_dl
-            break
+            if chosen and dl_path and dl_path.exists():
+                break
 
         if not chosen or not dl_path or not dl_path.exists():
             raise RuntimeError("Mos video topilmadi (ovozsiz yoki odam yuzi bor). Qayta qidiriladi.")
@@ -710,7 +700,10 @@ async def ensure_daily_autopilot_posts(bot: Bot, notify_owner: bool = True) -> l
 
 
 async def maybe_run_autopilot_tick(bot: Bot) -> None:
-    """Periodic check called from scheduler loop every 30 minutes to keep 4 daily slots filled."""
+    """Periodic check called from scheduler loop every 30 minutes to keep daily slots filled."""
+    if os.getenv("RENDER"):
+        # On Render Free tier, heavy OpenCV + FFmpeg autopilot runs via GitHub Actions cloud workflow
+        return
     global _LAST_AUTOPILOT_CHECK_TS
     now_ts = time.time()
     if now_ts - _LAST_AUTOPILOT_CHECK_TS < 1800:  # Check every 30 minutes

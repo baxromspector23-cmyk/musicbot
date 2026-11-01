@@ -87,6 +87,26 @@ async def load_direct_settings() -> dict[str, Any] | None:
                 return settings
         except Exception as exc:
             log.error("Failed to decode IG_SESSION_B64: %s", exc)
+
+    enc_file = Path("data/ig_session.enc.json")
+    if enc_file.exists():
+        try:
+            file_rec = json.loads(enc_file.read_text(encoding="utf-8"))
+            if isinstance(file_rec, dict) and file_rec.get("encrypted_settings"):
+                raw_json = tokens.decrypt_token(file_rec["encrypted_settings"])
+                settings = json.loads(raw_json)
+                if isinstance(settings, dict):
+                    uname = str(file_rec.get("username") or "")
+                    uid = str(file_rec.get("user_id") or "")
+                    await save_direct_session(settings, username=uname, user_id=uid)
+                    if uname:
+                        settings["_username"] = uname
+                    if uid:
+                        settings["_user_id"] = uid
+                    log.info("Seeded Instagram direct session from data/ig_session.enc.json for @%s", uname)
+                    return settings
+        except Exception as exc:
+            log.error("Failed to load data/ig_session.enc.json: %s", exc)
     return None
 
 
