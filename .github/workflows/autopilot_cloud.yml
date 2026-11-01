@@ -11,6 +11,10 @@ on:
         required: false
         default: "publish"
 
+concurrency:
+  group: autopilot-publish-lock
+  cancel-in-progress: false
+
 jobs:
   autopilot:
     permissions:
