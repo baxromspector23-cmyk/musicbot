@@ -2,13 +2,105 @@ name: Keep Render Service Awake
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "7 */3 * * *"
   workflow_dispatch:
 
 jobs:
-  ping:
+  cloud_clock:
     runs-on: ubuntu-latest
+    timeout-minutes: 210
     steps:
-      - name: Ping Render Health Endpoint
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install cryptography
+        run: pip install cryptography
+
+      - name: Run 3-Hour Exact-Minute Cloud Clock (11:00, 15:00, 20:00 Tashkent)
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          TZ: "Asia/Tashkent"
         run: |
-          curl -fsSL -A "GitHubActions-KeepAwake/1.0" "https://musicbot-yy58.onrender.com/health"
+          python -u - << 'EOF'
+          import base64, hashlib, json, os, time, urllib.request
+          from datetime import datetime, timezone
+          from zoneinfo import ZoneInfo
+          from cryptography.fernet import Fernet
+
+          bot_token = os.environ["BOT_TOKEN"].strip()
+          key = base64.urlsafe_b64encode(hashlib.sha256((bot_token + ":fernet-salt").encode()).digest())
+          raw = json.loads(open("data/gh_dispatch.enc.json", encoding="utf-8").read())
+          gh_token = Fernet(key).decrypt(raw["encrypted_token"].encode()).decode()
+
+          tz = ZoneInfo("Asia/Tashkent")
+          dispatched = set()
+          start_ts = time.time()
+
+          def dispatch_autopilot():
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/baxromspector23-cmyk/musicbot/actions/workflows/autopilot_cloud.yml/dispatches",
+                  data=json.dumps({"ref": "main", "inputs": {"mode": "publish"}}).encode(),
+                  headers={
+                      "Authorization": f"Bearer {gh_token}",
+                      "Accept": "application/vnd.github+json",
+                      "Content-Type": "application/json",
+                  },
+                  method="POST",
+              )
+              urllib.request.urlopen(req, timeout=20).read()
+
+          print("24/7 Self-Chaining Cloud Clock started!", flush=True)
+          # Run for 175 minutes (3 hours minus 5 min buffer), checking every 30 seconds
+          while time.time() - start_ts < 175 * 60:
+              now_tash = datetime.now(timezone.utc).astimezone(tz)
+              h, m = now_tash.hour, now_tash.minute
+              day_str = now_tash.strftime("%Y-%m-%d")
+
+              # Trigger at :00 (primary) and :12 (backup retry) for 11:00, 15:00, 20:00 Tashkent
+              if h in (11, 15, 20) and m in (0, 1, 12, 13):
+                  slot_window = "primary" if m < 5 else "backup"
+                  trig_key = f"{day_str}:{h:02d}:{slot_window}"
+                  if trig_key not in dispatched:
+                      try:
+                          dispatch_autopilot()
+                          dispatched.add(trig_key)
+                          print(f"[{now_tash.strftime('%Y-%m-%d %H:%M:%S')}] Dispatched autopilot_cloud.yml ({trig_key})!", flush=True)
+                      except Exception as exc:
+                          print(f"Dispatch error: {exc}", flush=True)
+
+              time.sleep(30)
+          EOF
+
+      - name: Chain Next 3-Hour Cloud Clock Relay
+        if: always()
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: |
+          python -u - << 'EOF'
+          import base64, hashlib, json, os, urllib.request
+          from cryptography.fernet import Fernet
+
+          bot_token = os.environ["BOT_TOKEN"].strip()
+          key = base64.urlsafe_b64encode(hashlib.sha256((bot_token + ":fernet-salt").encode()).digest())
+          raw = json.loads(open("data/gh_dispatch.enc.json", encoding="utf-8").read())
+          gh_token = Fernet(key).decrypt(raw["encrypted_token"].encode()).decode()
+
+          req = urllib.request.Request(
+              "https://api.github.com/repos/baxromspector23-cmyk/musicbot/actions/workflows/keep_awake.yml/dispatches",
+              data=json.dumps({"ref": "main"}).encode(),
+              headers={
+                  "Authorization": f"Bearer {gh_token}",
+                  "Accept": "application/vnd.github+json",
+                  "Content-Type": "application/json",
+              },
+              method="POST",
+          )
+          urllib.request.urlopen(req, timeout=20).read()
+          print("Successfully chained next 3-hour cloud clock relay!", flush=True)
+          EOF

@@ -116,22 +116,6 @@ async def restore_session_from_env() -> None:
                     user_id=str(sess_obj.get("_user_id") or "15317682957"),
                 )
             log.info("Restored ig_direct_session from IG_DIRECT_SESSION_B64 environment secret")
-            # Keep Render server synced with active session
-            try:
-                import urllib.request
-                kv_rec = await db.get_kv("ig_direct_session")
-                if kv_rec and config.TICK_SECRET:
-                    payload = json.dumps({"secret": config.TICK_SECRET, "sync_ig_session": kv_rec}).encode("utf-8")
-                    req = urllib.request.Request(
-                        "https://musicbot-yy58.onrender.com/tick",
-                        data=payload,
-                        headers={"Content-Type": "application/json"},
-                        method="POST",
-                    )
-                    urllib.request.urlopen(req, timeout=15).read()
-                    log.info("Synced ig_direct_session to Render server")
-            except Exception as sync_exc:
-                log.debug("Render session sync warning: %s", sync_exc)
     except Exception as exc:
         log.warning("Failed to decode IG_DIRECT_SESSION_B64: %s", exc)
 
