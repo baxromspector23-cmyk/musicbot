@@ -226,7 +226,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "☀️ Kunduzgi Rek #1 (11:00)",
         "niche": "Top AI Saytlar & Hayotiy Xaklar",
         "search_tags": [
-            "uiux", "framer", "interactiondesign", "webdesign", "aitools", "usefulwebsites",
+            "neovim", "terminalsetup", "clitools", "linuxcommands", "framer", "threejs",
         ],
         "captions": [
             (
@@ -264,7 +264,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🚀 Peshin Rek #2 (15:00)",
         "niche": "Talabalar va Frilanserlar uchun Super AI",
         "search_tags": [
-            "appdesign", "uidesign", "framer", "webdevelopment", "productivitytools", "aiwebsite",
+            "terminal", "commandline", "linuxterminal", "clitools", "neovim", "creativecoding",
         ],
         "captions": [
             (
@@ -299,7 +299,7 @@ DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
         "label": "🌙 Kechki Rek #3 (20:00)",
         "niche": "1 daqiqada natija beruvchi Super Saytlar",
         "search_tags": [
-            "interactiondesign", "threejs", "creativecoding", "uiuxdesign", "aitools", "usefulwebsites",
+            "terminalsetup", "pythoncode", "clitools", "kalilinux", "threejs", "framer",
         ],
         "captions": [
             (
@@ -433,10 +433,10 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         code = ""
         seen_codes: set[str] = set()
 
-        for tag in tags_to_try[:3]:
+        for tag in tags_to_try[:4]:
             tag_cands: list[Any] = []
             try:
-                medias = cl.hashtag_medias_top_v1(tag, amount=9)
+                medias = cl.hashtag_medias_top_v1(tag, amount=25)
                 for m in medias:
                     c_code = str(getattr(m, "code", "") or "")
                     dur = float(getattr(m, "video_duration", 0) or 0)
@@ -446,7 +446,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                     likes = int(getattr(m, "like_count", 0) or 0)
                     if (
                         mtype == 2
-                        and 8.0 <= dur <= 30.0
+                        and 6.5 <= dur <= 32.0
                         and (plays >= 100 or likes >= 5)
                         and c_code
                         and c_code not in used_codes
@@ -699,10 +699,49 @@ async def ensure_daily_autopilot_posts(bot: Bot, notify_owner: bool = True) -> l
         return created_posts
 
 
+_LAST_DISPATCHED_HOUR_KEY: str = ""
+
+
+async def _dispatch_github_cloud_autopilot_if_due() -> None:
+    """On Render, trigger GitHub Actions workflow_dispatch at exact 11:00, 15:00, 20:00 Tashkent hours."""
+    global _LAST_DISPATCHED_HOUR_KEY
+    tz = ZoneInfo(config.TZ)
+    now_local = datetime.now(timezone.utc).astimezone(tz)
+    if now_local.hour not in (11, 15, 20):
+        return
+    hour_key = f"{now_local.strftime('%Y-%m-%d')}:{now_local.hour:02d}"
+    if _LAST_DISPATCHED_HOUR_KEY == hour_key:
+        return
+    disp_file = Path("data/gh_dispatch.enc.json")
+    if not disp_file.exists():
+        return
+    try:
+        from services import tokens
+        import urllib.request
+        raw = json.loads(disp_file.read_text(encoding="utf-8"))
+        gh_tok = tokens.decrypt_token(raw["encrypted_token"])
+        headers = {
+            "Authorization": f"Bearer {gh_tok}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+        }
+        req = urllib.request.Request(
+            "https://api.github.com/repos/baxromspector23-cmyk/musicbot/actions/workflows/autopilot_cloud.yml/dispatches",
+            data=json.dumps({"ref": "main", "inputs": {"mode": "publish"}}).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        await asyncio.to_thread(lambda: urllib.request.urlopen(req, timeout=15).read())
+        _LAST_DISPATCHED_HOUR_KEY = hour_key
+        log.info("Render exact-hour dispatcher triggered GitHub Cloud Autopilot for %s", hour_key)
+    except Exception as exc:
+        log.warning("Render GitHub dispatch trigger warning: %s", exc)
+
+
 async def maybe_run_autopilot_tick(bot: Bot) -> None:
     """Periodic check called from scheduler loop every 30 minutes to keep daily slots filled."""
     if os.getenv("RENDER"):
-        # On Render Free tier, heavy OpenCV + FFmpeg autopilot runs via GitHub Actions cloud workflow
+        await _dispatch_github_cloud_autopilot_if_due()
         return
     global _LAST_AUTOPILOT_CHECK_TS
     now_ts = time.time()
