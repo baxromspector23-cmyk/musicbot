@@ -161,14 +161,13 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
                 cap.release()
                 return False, f"static slide/low motion graphic (diff={diff:.1f} < 1.5)"
 
-            # Check for genuine letterbox black padding bars on top or bottom
-            # (A true letterbox bar has near-zero pixel variance across the entire row, unlike dark UI)
+            # Check for genuine letterbox black padding bars on BOTH top and bottom
             gray1 = cv2.cvtColor(f1, cv2.COLOR_BGR2GRAY)
             row_stds = np.std(gray1, axis=1)
             row_means = np.mean(gray1, axis=1)
-            top_black = sum(1 for i, (rm, rstd) in enumerate(zip(row_means[:int(h * 0.35)], row_stds[:int(h * 0.35)])) if rm < 6.0 and rstd < 4.0)
-            bot_black = sum(1 for i, (rm, rstd) in enumerate(zip(row_means[int(h * 0.65):], row_stds[int(h * 0.65):])) if rm < 6.0 and rstd < 4.0)
-            if (top_black / h > 0.12) or (bot_black / h > 0.12):
+            top_black = sum(1 for rm, rstd in zip(row_means[:int(h * 0.30)], row_stds[:int(h * 0.30)]) if rm < 6.0 and rstd < 3.5)
+            bot_black = sum(1 for rm, rstd in zip(row_means[int(h * 0.70):], row_stds[int(h * 0.70):]) if rm < 6.0 and rstd < 3.5)
+            if (top_black / h > 0.10) and (bot_black / h > 0.10):
                 cap.release()
                 return False, f"letterboxed video with black padding bars (top={top_black/h*100:.1f}%, bot={bot_black/h*100:.1f}%)"
 
@@ -195,22 +194,12 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
             small = cv2.resize(frame, (int(fw * scale), int(fh * scale)))
             gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
 
-            # Cascade face check (minNeighbors=6, minSize=(52, 52) on 270x480 to reject talking heads without UI icon false positives)
+            # Cascade face check (minNeighbors=6, minSize=(52, 52) on 270x480 to reject talking heads)
             for c_name, casc in cascades:
                 faces = casc.detectMultiScale(gray, scaleFactor=1.16, minNeighbors=6, minSize=(52, 52))
                 if len(faces) > 0:
                     cap.release()
                     return False, f"human face detected ({c_name} at {int(pt*100)}%)"
-
-            # Center skin check
-            sh, sw = small.shape[:2]
-            center = small[int(sh * 0.15):int(sh * 0.85), int(sw * 0.15):int(sw * 0.85)]
-            ycrcb = cv2.cvtColor(center, cv2.COLOR_BGR2YCrCb)
-            skin_mask = cv2.inRange(ycrcb, np.array([0, 133, 77]), np.array([255, 173, 127]))
-            skin_ratio = float(np.count_nonzero(skin_mask)) / float(skin_mask.shape[0] * skin_mask.shape[1])
-            if skin_ratio > 0.22:
-                cap.release()
-                return False, f"human skin/body detected ({skin_ratio*100:.1f}% at {int(pt*100)}%)"
 
         cap.release()
         return True, ""
@@ -219,94 +208,95 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
         return True, ""
 
 
-# 3 daily optimal Rek slots in Asia/Tashkent (Mega-Viral AI Cinema, Robotics & VFX Edition):
+# 3 daily optimal Rek slots in Asia/Tashkent (Mega-Viral Supercars, BMW M, Mercedes AMG & Night Drive Edition):
 DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
     {
         "time": "11:00",
         "label": "☀️ Kunduzgi Rek #1 (11:00)",
-        "niche": "Giper-Realistik AI Video & Neyrotarmoq Shok Kadrlari",
+        "niche": "BMW M-Power & Agressiv Avto Editlar",
         "search_tags": [
-            "aivideo", "klingai", "soraai", "runwayml", "lumaai", "pikalabs", "midjourney", "aiart",
+            "bmwm5", "bmwm4", "bmwm3", "caredit", "caredits", "mpower", "bimmer", "sportscar",
         ],
         "captions": [
             (
-                "Bu haqiqiymi yoki Sun'iy Intellekt (AI)? 🤯 Oxirigacha diqqat bilan qarang!\n\n"
-                "Neyrotarmoqlar shu darajaga yetdiki, haqiqiy videodan ajratishning iloji yo'q ⚡️\n\n"
-                "💬 Sizningcha bu AI yoki real tasvir? Izohda yozing 👇\n"
-                "🚀 Kelajak texnologiyalari: @test_aibot"
+                "Bitta so'z bilan baho bering! 🔥🏎\n\n"
+                "Har bir yigitning orzusidagi haqiqiy yirtqich! 🖤⚡️\n\n"
+                "💬 BMW yoki Mercedes? Izohda yozing 👇\n"
+                "📲 Yaqin jigarlaringizga yuboring — hammamizga nasib qilsin! 🤲\n"
+                "🏁 Obuna bo'ling: @test_aibot"
             ),
             (
-                "Sun'iy intellekt (AI) yaratgan ushbu kadr butun internetni hayratga soldi! 😱🔥\n\n"
-                "Atigi bir necha soniyada neyrotarmoq chizgan giper-realistik sahna.\n\n"
-                "🔥 1 dan 10 gacha baholang 👇\n"
-                "📌 Eng daxshatli AI videolar: @test_aibot"
+                "Bu ko'rinish va ovozga 1 dan 10 gacha necha ball berasiz? 😍🔥\n\n"
+                "Yo'ldagi haqiqiy qirol — oxirigacha tomosha qiling! 🔊⚡️\n\n"
+                "📌 Yoqqan bo'lsa saqlab oling va do'stlarga ulashing!\n"
+                "🏎 @test_aibot"
             ),
         ],
         "caption": (
-            "Bu haqiqiymi yoki Sun'iy Intellekt (AI)? 🤯 Oxirigacha diqqat bilan qarang!\n\n"
-            "Neyrotarmoqlar shu darajaga yetdiki, haqiqiy videodan ajratishning iloji yo'q ⚡️\n\n"
-            "💬 Sizningcha bu AI yoki real tasvir? Izohda yozing 👇\n"
-            "🚀 Kelajak texnologiyalari: @test_aibot"
+            "Bitta so'z bilan baho bering! 🔥🏎\n\n"
+            "Har bir yigitning orzusidagi haqiqiy yirtqich! 🖤⚡️\n\n"
+            "💬 BMW yoki Mercedes? Izohda yozing 👇\n"
+            "📲 Yaqin jigarlaringizga yuboring — hammamizga nasib qilsin! 🤲\n"
+            "🏁 Obuna bo'ling: @test_aibot"
         ),
-        "hashtags": ["ai", "suniyintellekt", "aivideo", "texnologiya", "kelajak", "rek", "uzbekistan"],
+        "hashtags": ["bmw", "bmwm5", "avto", "mashina", "caredit", "rek", "uzbekistan", "toshkent"],
     },
     {
         "time": "15:00",
         "label": "🚀 Peshin Rek #2 (15:00)",
-        "niche": "Kelajak Robotlari & Aqlbovar Qilmas Texnologiyalar",
+        "niche": "Mercedes-AMG, G63 Gelik & Luxury Avto",
         "search_tags": [
-            "humanoidrobot", "bostondynamics", "futuretech", "robotics", "cyberpunk", "aivideo", "klingai", "cgi",
+            "mercedesamg", "cls63", "g63", "brabus", "luxurycars", "amg", "caredit", "supercars",
         ],
         "captions": [
             (
-                "2026-yilgi Sun'iy Intellekt va texnologiyalar qayerga qarab ketyapti?! 😱🤖\n\n"
-                "Bunga ishonish qiyin, lekin kelajak allaqachon yetib keldi!\n\n"
-                "📲 Do'stlaringizga yuborib, ularning reaksiyasini ko'ring!\n"
-                "⚡️ Obuna bo'ling: @test_aibot"
+                "Bu atmosfera va qudratni his qiling! 🖤🔥\n\n"
+                "Orzular sari to'xtamasdan harakat qiling — shunday mashina minish nasib qilsin! 🤲🏎\n\n"
+                "📲 Eng yaqin do'stingizga yuborib qo'ying!\n"
+                "⚡️ @test_aibot"
             ),
             (
-                "Kelajak texnologiyasi: bunga oddiy ko'z bilan qarab ishonish qiyin! 🤯⚡️\n\n"
-                "Oxirigacha ko'ring — eng ajoyib joyi so'nggi soniyada!\n\n"
-                "💬 Fikringizni izohda qoldiring 👇\n"
-                "🚀 @test_aibot"
+                "Haqiqiy klassika va zamonaviy agressiya bitta kadrda! 😎🔊\n\n"
+                "Ovozini baland qilib oxirigacha ko'ring! 🔥\n\n"
+                "💬 Qaysi model sizning orzuingiz? Izohda yozing 👇\n"
+                "🏁 @test_aibot"
             ),
         ],
         "caption": (
-            "2026-yilgi Sun'iy Intellekt va texnologiyalar qayerga qarab ketyapti?! 😱🤖\n\n"
-            "Bunga ishonish qiyin, lekin kelajak allaqachon yetib keldi!\n\n"
-            "📲 Do'stlaringizga yuborib, ularning reaksiyasini ko'ring!\n"
-            "⚡️ Obuna bo'ling: @test_aibot"
+            "Bu atmosfera va qudratni his qiling! 🖤🔥\n\n"
+            "Orzular sari to'xtamasdan harakat qiling — shunday mashina minish nasib qilsin! 🤲🏎\n\n"
+            "📲 Eng yaqin do'stingizga yuborib qo'ying!\n"
+            "⚡️ @test_aibot"
         ),
-        "hashtags": ["texnologiya", "robot", "suniyintellekt", "kelajak", "ai", "reelsuz", "toshkent"],
+        "hashtags": ["mercedes", "amg", "gelik", "mashinalar", "avtouz", "rek", "reelsuz", "toshkent"],
     },
     {
         "time": "20:00",
         "label": "🌙 Kechki Rek #3 (20:00)",
-        "niche": "3D CGI, VFX & Gipnotik AI Vizual Effektlar",
+        "niche": "Porsche GT3 RS, Superkarlar & Tungi Drive",
         "search_tags": [
-            "unrealengine5", "cgi", "vfx", "aivideo", "soraai", "runwayml", "blender3d", "digitalart",
+            "porsche911", "gt3rs", "supercars", "nightdrive", "hypercars", "lamborghini", "caredits", "sportscars",
         ],
         "captions": [
             (
-                "Grafika va Sun'iy Intellekt chegarasi yo'qoldi! 🤯✨\n\n"
-                "Ushbu videoni kamida 2 marta qayta ko'rmasdan o'tib ketish qiyin 👀🔥\n\n"
-                "📌 Yoqqan bo'lsa saqlab oling va yaqinlaringizga ulashing!\n"
+                "Tungi shahar, musiqa va orzudagi mashina... 🌙🏎🔥\n\n"
+                "Ushbu videoni 2 marta qayta ko'rmasdan o'tib ketish qiyin! 👀⚡️\n\n"
+                "📌 Kayfiyat uchun saqlab oling va jigarlarga ulashing!\n"
                 "🚀 @test_aibot"
             ),
             (
-                "99% odam bu kadrni haqiqiy deb o'yladi! 😱🔥\n\n"
-                "Zamonaviy AI va 3D texnologiyalar imkoniyatiga baho bering!\n\n"
-                "💬 Haqiqiymi yoki grafika? Izohda yozing 👇\n"
-                "⚡️ @test_aibot"
+                "Tezlik va mukammallik uyg'unligi! 🤯🏁\n\n"
+                "1 dan 10 gacha baholang — sizga qaysi rangdagisi yoqadi? 👇\n\n"
+                "🔥 Eng kuchli avto videolar har kuni: @test_aibot"
             ),
         ],
         "caption": (
-            "Grafika va Sun'iy Intellekt chegarasi yo'qoldi! 🤯✨\n\n"
-            "Ushbu videoni kamida 2 marta qayta ko'rmasdan o'tib ketish qiyin 👀🔥\n\n"
-            "📌 Yoqqan bo'lsa saqlab oling va yaqinlaringizga ulashing!\n"
+            "Tungi shahar, musiqa va orzudagi mashina... 🌙🏎🔥\n\n"
+            "Ushbu videoni 2 marta qayta ko'rmasdan o'tib ketish qiyin! 👀⚡️\n\n"
+            "📌 Kayfiyat uchun saqlab oling va jigarlarga ulashing!\n"
             "🚀 @test_aibot"
         ),
-        "hashtags": ["ai", "suniyintellekt", "cgi", "vfx", "texnologiya", "rek", "reelsuz"],
+        "hashtags": ["porsche", "supercars", "nightdrive", "caredit", "mashina", "rek", "uzbekistan", "reelsuz"],
     },
 ]
 
@@ -407,9 +397,9 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         tags_to_try = list(search_tags)
         random.shuffle(tags_to_try)
         fallback_faceless_tags = [
-            "aivideo", "klingai", "soraai", "runwayml",
-            "lumaai", "unrealengine5", "cgi", "vfx",
-            "humanoidrobot", "futuretech", "blender3d", "digitalart",
+            "caredit", "caredits", "bmwm5", "mercedesamg",
+            "porsche911", "gt3rs", "supercars", "cls63",
+            "g63", "nightdrive", "bmwm4", "luxurycars",
         ]
         random.shuffle(fallback_faceless_tags)
         for fb_t in fallback_faceless_tags:
