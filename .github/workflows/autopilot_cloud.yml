@@ -74,7 +74,7 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.mode }}" = "check-only" ]; then
             python -m scripts.cloud_autopilot_run --check-only
-          elif [ "${{ github.ref_name }}" = "trigger-now" ]; then
+          elif [ "${{ github.event.inputs.mode }}" = "force" ] || [ "${{ github.ref_name }}" = "trigger-now" ]; then
             python -m scripts.cloud_autopilot_run --force
           else
             python -m scripts.cloud_autopilot_run

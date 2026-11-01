@@ -219,115 +219,94 @@ def verify_video_content(video_path: Path) -> tuple[bool, str]:
         return True, ""
 
 
-# 3 daily optimal Rek slots in Asia/Tashkent (AI & Future Tech Edition):
+# 3 daily optimal Rek slots in Asia/Tashkent (Mega-Viral AI Cinema, Robotics & VFX Edition):
 DAILY_SLOTS_SPEC: list[dict[str, Any]] = [
     {
         "time": "11:00",
         "label": "☀️ Kunduzgi Rek #1 (11:00)",
-        "niche": "Top AI Saytlar & Hayotiy Xaklar",
+        "niche": "Giper-Realistik AI Video & Neyrotarmoq Shok Kadrlari",
         "search_tags": [
-            "neovim", "terminalsetup", "clitools", "linuxcommands", "framer", "threejs",
+            "aivideo", "klingai", "soraai", "runwayml", "lumaai", "pikalabs", "midjourney", "aiart",
         ],
         "captions": [
             (
-                "⚡️ Hech kim bilmaydigan eng kuchli Sun'iy Intellekt saytlari! 💻🔥\n\n"
-                "Soatlab qilinadigan ishlarni 1 daqiqada bajaring:\n"
-                "✅ Taqdimot va slaydlarni avtomatik tayyorlash\n"
-                "✅ Matnlarni tahrirlash va g'oyalar yaratish\n"
-                "✅ Ish unumdorligini 10x oshiruvchi bepul vositalar\n\n"
-                "📌 Keyinroq kerak bo'ladi — albatta saqlab oling!\n"
+                "Bu haqiqiymi yoki Sun'iy Intellekt (AI)? 🤯 Oxirigacha diqqat bilan qarang!\n\n"
+                "Neyrotarmoqlar shu darajaga yetdiki, haqiqiy videodan ajratishning iloji yo'q ⚡️\n\n"
+                "💬 Sizningcha bu AI yoki real tasvir? Izohda yozing 👇\n"
                 "🚀 Kelajak texnologiyalari: @test_aibot"
             ),
             (
-                "🔥 Internetdagi eng foydali va bepul AI vositalari! 🛠✨\n\n"
-                "Bular haqida ko'pchilik bilmaydi, lekin har kuni yordam beradi:\n"
-                "✅ Video va rasmlar sifatini 4K ga oshirish\n"
-                "✅ Ovozni tozalash va professional montaj\n"
-                "✅ 100% bepul va qulay interfeys\n\n"
-                "💎 Do'stlaringizga ham ulashing!\n"
-                "Sahifamiz: @test_aibot"
+                "Sun'iy intellekt (AI) yaratgan ushbu kadr butun internetni hayratga soldi! 😱🔥\n\n"
+                "Atigi bir necha soniyada neyrotarmoq chizgan giper-realistik sahna.\n\n"
+                "🔥 1 dan 10 gacha baholang 👇\n"
+                "📌 Eng daxshatli AI videolar: @test_aibot"
             ),
         ],
         "caption": (
-            "⚡️ Hech kim bilmaydigan eng kuchli Sun'iy Intellekt saytlari! 💻🔥\n\n"
-            "Soatlab qilinadigan ishlarni 1 daqiqada bajaring:\n"
-            "✅ Taqdimot va slaydlarni avtomatik tayyorlash\n"
-            "✅ Matnlarni tahrirlash va g'oyalar yaratish\n"
-            "✅ Ish unumdorligini 10x oshiruvchi bepul vositalar\n\n"
-            "📌 Keyinroq kerak bo'ladi — albatta saqlab oling!\n"
+            "Bu haqiqiymi yoki Sun'iy Intellekt (AI)? 🤯 Oxirigacha diqqat bilan qarang!\n\n"
+            "Neyrotarmoqlar shu darajaga yetdiki, haqiqiy videodan ajratishning iloji yo'q ⚡️\n\n"
+            "💬 Sizningcha bu AI yoki real tasvir? Izohda yozing 👇\n"
             "🚀 Kelajak texnologiyalari: @test_aibot"
         ),
-        "hashtags": ["ai", "suniyintellekt", "texnologiya", "foydali", "lifehack", "saytlar", "ituz"],
+        "hashtags": ["ai", "suniyintellekt", "aivideo", "texnologiya", "kelajak", "rek", "uzbekistan"],
     },
     {
         "time": "15:00",
         "label": "🚀 Peshin Rek #2 (15:00)",
-        "niche": "Talabalar va Frilanserlar uchun Super AI",
+        "niche": "Kelajak Robotlari & Aqlbovar Qilmas Texnologiyalar",
         "search_tags": [
-            "terminal", "commandline", "linuxterminal", "clitools", "neovim", "creativecoding",
+            "humanoidrobot", "bostondynamics", "futuretech", "robotics", "cyberpunk", "aivideo", "klingai", "cgi",
         ],
         "captions": [
             (
-                "🚀 Rutin ishlarni AI ga topshiring! Talabalar va ishchilar uchun super xaklar ⚡️💻\n\n"
-                "Endi noldan bosh qotirib o'tirmang — sun'iy intellekt hammasini tayyorlab beradi:\n"
-                "✅ Ilmiy ishlar va referatlarni tahlil qilish\n"
-                "✅ Matndan professional prezentatsiya yasash\n"
-                "✅ Xorijiy tillarni tezkor o'rganish yordamchisi\n\n"
-                "💡 Foydali bo'lsa saqlab qo'ying! Obuna: @test_aibot"
+                "2026-yilgi Sun'iy Intellekt va texnologiyalar qayerga qarab ketyapti?! 😱🤖\n\n"
+                "Bunga ishonish qiyin, lekin kelajak allaqachon yetib keldi!\n\n"
+                "📲 Do'stlaringizga yuborib, ularning reaksiyasini ko'ring!\n"
+                "⚡️ Obuna bo'ling: @test_aibot"
             ),
             (
-                "⚡️ Ushbu AI saytlari sizning o'rningizga ishlaydi! 🤯✨\n\n"
-                "Har kuni vaqtingizni tejash uchun eng sara vositalar:\n"
-                "✅ Avtomatik slaydlar va hisobotlar\n"
-                "✅ Bepul grafik dizayn va illyustratsiyalar\n"
-                "✅ Samaradorlikni 10 barobar oshirish sirlari\n\n"
-                "📌 Saqlab oling va do'stlarga yuboring! @test_aibot"
+                "Kelajak texnologiyasi: bunga oddiy ko'z bilan qarab ishonish qiyin! 🤯⚡️\n\n"
+                "Oxirigacha ko'ring — eng ajoyib joyi so'nggi soniyada!\n\n"
+                "💬 Fikringizni izohda qoldiring 👇\n"
+                "🚀 @test_aibot"
             ),
         ],
         "caption": (
-            "🚀 Rutin ishlarni AI ga topshiring! Talabalar va ishchilar uchun super xaklar ⚡️💻\n\n"
-            "Endi noldan bosh qotirib o'tirmang — sun'iy intellekt hammasini tayyorlab beradi:\n"
-            "✅ Ilmiy ishlar va referatlarni tahlil qilish\n"
-            "✅ Matndan professional prezentatsiya yasash\n"
-            "✅ Xorijiy tillarni tezkor o'rganish yordamchisi\n\n"
-            "💡 Foydali bo'lsa saqlab qo'ying! Obuna: @test_aibot"
+            "2026-yilgi Sun'iy Intellekt va texnologiyalar qayerga qarab ketyapti?! 😱🤖\n\n"
+            "Bunga ishonish qiyin, lekin kelajak allaqachon yetib keldi!\n\n"
+            "📲 Do'stlaringizga yuborib, ularning reaksiyasini ko'ring!\n"
+            "⚡️ Obuna bo'ling: @test_aibot"
         ),
-        "hashtags": ["ai", "talaba", "frilans", "suniyintellekt", "texnologiya", "ituzbekistan", "lifehacks"],
+        "hashtags": ["texnologiya", "robot", "suniyintellekt", "kelajak", "ai", "reelsuz", "toshkent"],
     },
     {
         "time": "20:00",
         "label": "🌙 Kechki Rek #3 (20:00)",
-        "niche": "1 daqiqada natija beruvchi Super Saytlar",
+        "niche": "3D CGI, VFX & Gipnotik AI Vizual Effektlar",
         "search_tags": [
-            "terminalsetup", "pythoncode", "clitools", "kalilinux", "threejs", "framer",
+            "unrealengine5", "cgi", "vfx", "aivideo", "soraai", "runwayml", "blender3d", "digitalart",
         ],
         "captions": [
             (
-                "✨ Har bir inson bilishi shart bo'lgan aqlbovar qilmas AI saytlari! 🤖🔥\n\n"
-                "Ushbu neyrotarmoqlar orqali hayotingizni 10 baravar yengillashtiring:\n"
-                "✅ Dizayn va rasmlarni sekundlarda yaratish\n"
-                "✅ Murakkab ma'lumotlarni 1 daqiqada konspekt qilish\n"
-                "✅ Eng so'nggi zamonaviy sun'iy intellekt yangiliklari\n\n"
-                "🚀 Obuna bo'ling va eng birinchilardan bo'lib o'rganing: @test_aibot"
+                "Grafika va Sun'iy Intellekt chegarasi yo'qoldi! 🤯✨\n\n"
+                "Ushbu videoni kamida 2 marta qayta ko'rmasdan o'tib ketish qiyin 👀🔥\n\n"
+                "📌 Yoqqan bo'lsa saqlab oling va yaqinlaringizga ulashing!\n"
+                "🚀 @test_aibot"
             ),
             (
-                "💡 Bular haqida 99% odamlar bilmaydi! Super foydali AI xaklari ⚡️\n\n"
-                "Telefoningiz yoki kompyuteringizda bo'lishi kerak bo'lgan qudratli vositalar:\n"
-                "✅ Har qanday savolga aniq javob beruvchi neyrotarmoqlar\n"
-                "✅ Bepul o'rganish va professional ko'nikmalar\n"
-                "✅ Vaqtingizni tejovchi yechimlar\n\n"
-                "💎 Do'stlaringizga ham ulashing: @test_aibot"
+                "99% odam bu kadrni haqiqiy deb o'yladi! 😱🔥\n\n"
+                "Zamonaviy AI va 3D texnologiyalar imkoniyatiga baho bering!\n\n"
+                "💬 Haqiqiymi yoki grafika? Izohda yozing 👇\n"
+                "⚡️ @test_aibot"
             ),
         ],
         "caption": (
-            "✨ Har bir inson bilishi shart bo'lgan aqlbovar qilmas AI saytlari! 🤖🔥\n\n"
-            "Ushbu neyrotarmoqlar orqali hayotingizni 10 baravar yengillashtiring:\n"
-            "✅ Dizayn va rasmlarni sekundlarda yaratish\n"
-            "✅ Murakkab ma'lumotlarni 1 daqiqada konspekt qilish\n"
-            "✅ Eng so'nggi zamonaviy sun'iy intellekt yangiliklari\n\n"
-            "🚀 Obuna bo'ling va eng birinchilardan bo'lib o'rganing: @test_aibot"
+            "Grafika va Sun'iy Intellekt chegarasi yo'qoldi! 🤯✨\n\n"
+            "Ushbu videoni kamida 2 marta qayta ko'rmasdan o'tib ketish qiyin 👀🔥\n\n"
+            "📌 Yoqqan bo'lsa saqlab oling va yaqinlaringizga ulashing!\n"
+            "🚀 @test_aibot"
         ),
-        "hashtags": ["aitools", "suniyintellekt", "kelajak", "foydalisaytlar", "texnologiya", "reelsuz"],
+        "hashtags": ["ai", "suniyintellekt", "cgi", "vfx", "texnologiya", "rek", "reelsuz"],
     },
 ]
 
@@ -428,9 +407,9 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         tags_to_try = list(search_tags)
         random.shuffle(tags_to_try)
         fallback_faceless_tags = [
-            "neovim", "terminalsetup", "linuxterminal", "clitools",
-            "commandline", "bashscripting", "pythoncode", "threejs",
-            "framer", "creativecoding", "kalilinux", "linuxcommands",
+            "aivideo", "klingai", "soraai", "runwayml",
+            "lumaai", "unrealengine5", "cgi", "vfx",
+            "humanoidrobot", "futuretech", "blender3d", "digitalart",
         ]
         random.shuffle(fallback_faceless_tags)
         for fb_t in fallback_faceless_tags:
@@ -453,18 +432,18 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
         for tag in tags_to_try[:8]:
             tag_cands: list[Any] = []
             try:
-                medias = cl.hashtag_medias_top_v1(tag, amount=25)
+                medias = cl.hashtag_medias_top_v1(tag, amount=27)
                 for m in medias:
                     c_code = str(getattr(m, "code", "") or "")
                     dur = float(getattr(m, "video_duration", 0) or 0)
                     mtype = int(getattr(m, "media_type", 0) or 0)
                     owner_pk = str(getattr(getattr(m, "user", None), "pk", "") or "")
-                    plays = int(getattr(m, "play_count", 0) or 0)
+                    plays = max(int(getattr(m, "play_count", 0) or 0), int(getattr(m, "view_count", 0) or 0))
                     likes = int(getattr(m, "like_count", 0) or 0)
                     if (
                         mtype == 2
-                        and 6.5 <= dur <= 32.0
-                        and (plays >= 100 or likes >= 5)
+                        and 6.0 <= dur <= 19.5
+                        and (plays >= 3000 or likes >= 150)
                         and c_code
                         and c_code not in used_codes
                         and c_code not in existing_codes
@@ -479,9 +458,9 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                 log.debug("hashtag top search %s warning: %s", tag, exc)
                 continue
 
-            # Sort by engagement (views + likes * 10) in STRICT descending order (top viral first!)
+            # Sort by engagement (views + likes * 15) in STRICT descending order (top viral first!)
             tag_cands.sort(
-                key=lambda x: int(getattr(x, "play_count", 0) or 0) + int(getattr(x, "like_count", 0) or 0) * 10,
+                key=lambda x: max(int(getattr(x, "play_count", 0) or 0), int(getattr(x, "view_count", 0) or 0)) + int(getattr(x, "like_count", 0) or 0) * 15,
                 reverse=True,
             )
 
