@@ -427,13 +427,30 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
 
         tags_to_try = list(search_tags)
         random.shuffle(tags_to_try)
+        fallback_faceless_tags = [
+            "neovim", "terminalsetup", "linuxterminal", "clitools",
+            "commandline", "bashscripting", "pythoncode", "threejs",
+            "framer", "creativecoding", "kalilinux", "linuxcommands",
+        ]
+        random.shuffle(fallback_faceless_tags)
+        for fb_t in fallback_faceless_tags:
+            if fb_t not in tags_to_try:
+                tags_to_try.append(fb_t)
+
+        def _persist_rejected_code(rej_code: str) -> None:
+            used_codes.add(rej_code)
+            try:
+                USED_CODES_FILE.parent.mkdir(parents=True, exist_ok=True)
+                USED_CODES_FILE.write_text(json.dumps(sorted(used_codes), indent=2), encoding="utf-8")
+            except Exception:
+                pass
 
         chosen = None
         dl_path = None
         code = ""
         seen_codes: set[str] = set()
 
-        for tag in tags_to_try[:4]:
+        for tag in tags_to_try[:8]:
             tag_cands: list[Any] = []
             try:
                 medias = cl.hashtag_medias_top_v1(tag, amount=25)
@@ -480,7 +497,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                 if not video_has_audio(cand_dl):
                     log.warning("REJECTED candidate %s: NO AUDIO (video must have sound/music)", cand_code)
                     cand_dl.unlink(missing_ok=True)
-                    used_codes.add(cand_code)
+                    _persist_rejected_code(cand_code)
                     continue
 
                 # 2. Strict Quality & Content check: Native 9:16 vertical, Dynamic motion, 100% Faceless
@@ -488,7 +505,7 @@ async def find_and_download_b2b_video(slot_index: int = 0) -> dict[str, Any]:
                 if not ok:
                     log.warning("REJECTED candidate %s: %s", cand_code, reason)
                     cand_dl.unlink(missing_ok=True)
-                    used_codes.add(cand_code)
+                    _persist_rejected_code(cand_code)
                     continue
 
                 # Candidate passed all checks!
@@ -700,17 +717,19 @@ async def ensure_daily_autopilot_posts(bot: Bot, notify_owner: bool = True) -> l
 
 
 _LAST_DISPATCHED_HOUR_KEY: str = ""
+_LAST_DISPATCH_TS: float = 0.0
 
 
 async def _dispatch_github_cloud_autopilot_if_due() -> None:
-    """On Render, trigger GitHub Actions workflow_dispatch at exact 11:00, 15:00, 20:00 Tashkent hours."""
-    global _LAST_DISPATCHED_HOUR_KEY
+    """On Render, trigger GitHub Actions workflow_dispatch at exact 11:00, 15:00, 20:00 Tashkent hours (with 15m retry)."""
+    global _LAST_DISPATCHED_HOUR_KEY, _LAST_DISPATCH_TS
     tz = ZoneInfo(config.TZ)
     now_local = datetime.now(timezone.utc).astimezone(tz)
     if now_local.hour not in (11, 15, 20):
         return
+    now_ts = time.time()
     hour_key = f"{now_local.strftime('%Y-%m-%d')}:{now_local.hour:02d}"
-    if _LAST_DISPATCHED_HOUR_KEY == hour_key:
+    if _LAST_DISPATCHED_HOUR_KEY == hour_key and (now_ts - _LAST_DISPATCH_TS) < 900:
         return
     disp_file = Path("data/gh_dispatch.enc.json")
     if not disp_file.exists():
@@ -733,6 +752,7 @@ async def _dispatch_github_cloud_autopilot_if_due() -> None:
         )
         await asyncio.to_thread(lambda: urllib.request.urlopen(req, timeout=15).read())
         _LAST_DISPATCHED_HOUR_KEY = hour_key
+        _LAST_DISPATCH_TS = now_ts
         log.info("Render exact-hour dispatcher triggered GitHub Cloud Autopilot for %s", hour_key)
     except Exception as exc:
         log.warning("Render GitHub dispatch trigger warning: %s", exc)
