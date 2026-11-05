@@ -8,3 +8,5 @@ venv/
 *.egg-info/
 /tmp/
 *.db
+data/reels_out/
+data/original_reels_state.json

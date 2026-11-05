@@ -1,0 +1,212 @@
+[
+  {
+    "id": "r01_fuel_arrow",
+    "theme": "car",
+    "label": "MASHINA SIRI",
+    "hook": "Mashinangiz bo'lsa\n*buni darhol* ko'ring",
+    "voice": [
+      "Mashinangiz bo'lsa, buni darhol ko'ring.",
+      "Begona mashinada benzin quyishga kelsangiz, bak qaysi tomonda ekanini bilmaysiz.",
+      "Panelga qarang. Yoqilg'i belgisi yonida kichkina uchburchak bor.",
+      "Uchburchak qaysi tomonga qarasa, bak qopqog'i ham o'sha tomonda."
+    ],
+    "cta": "Buni oldin bilarmidingiz? HA yoki YO'Q deb yozing",
+    "caption": "Yoqilg'i bakining qaysi tomonda ekanini 1 soniyada bilish usuli ⛽\n\nPaneldagi yoqilg'i belgisi yonidagi kichik uchburchakka qarang — u bak tomonini ko'rsatadi.\n\nBuni oldin bilarmidingiz? HA yoki YO'Q deb yozing 👇\nHaydovchi do'stingizga yuboring 🚗",
+    "hashtags": ["avtouz", "haydovchi", "foydalimaslahat", "toshkent", "bilasizmi"]
+  },
+  {
+    "id": "r02_battery_80",
+    "theme": "phone",
+    "label": "TELEFON SIRI",
+    "hook": "Telefonni *100%* gacha\nquvvatlaysizmi?",
+    "voice": [
+      "Telefonni yuz foizgacha quvvatlaysizmi? Unda eshiting.",
+      "Telefon batareyasi yigirma va sakson foiz oralig'ida eng uzoq yashaydi.",
+      "Doim to'liq quvvatlash va nolgacha tushirish batareyani tezroq eskirtiradi.",
+      "Sozlamalarda optimallashtirilgan quvvatlash funksiyasini yoqib qo'ying."
+    ],
+    "cta": "Siz telefonni tunda quvvatga qo'yasizmi?",
+    "caption": "Batareyangiz tez eskiryaptimi? 🔋\n\nLi-ion batareya 20–80% oralig'ida eng uzoq xizmat qiladi. Sozlamalarda «Optimallashtirilgan quvvatlash»ni yoqing.\n\nSiz telefonni tunda quvvatga qo'yasizmi? Izohda yozing 👇",
+    "hashtags": ["telefon", "foydalimaslahat", "lifehack", "uzbekistan", "bilasizmi"]
+  },
+  {
+    "id": "r03_honey",
+    "theme": "fact",
+    "label": "BILASIZMI?",
+    "hook": "Bu mahsulot\n*hech qachon* buzilmaydi",
+    "voice": [
+      "Bu mahsulot hech qachon buzilmaydi.",
+      "Gap asal haqida.",
+      "Arxeologlar Misr qabrlaridan ming yillik asal topishgan va u hali ham yeyishga yaroqli bo'lgan.",
+      "Sababi, asalda namlik juda kam va u kislotali. Mikroblar unda yashay olmaydi."
+    ],
+    "cta": "Asal shakarlanib qolsa, buzilgan deb o'ylarmidingiz?",
+    "caption": "Ming yillik asal ham buzilmaydi 🍯\n\nAsalda namlik juda kam va u kislotali — mikroblar unda ko'paya olmaydi. Shakarlanish esa buzilish emas!\n\nSiz bilarmidingiz? Izohda yozing 👇",
+    "hashtags": ["bilasizmi", "qiziqarlifaktlar", "asal", "uzbekistan", "faktlar"]
+  },
+  {
+    "id": "r04_recirculation",
+    "theme": "car",
+    "label": "MASHINA SIRI",
+    "hook": "Bu tugmani\n*90%* haydovchi bilmaydi",
+    "voice": [
+      "Bu tugmani to'qson foiz haydovchi to'g'ri ishlatmaydi.",
+      "Ichida aylanayotgan mashina belgisi bor tugma, bu havo aylanish rejimi.",
+      "Tirbandlikda va changli yo'lda uni yoqing, tashqaridagi tutun va chang salonga kirmaydi.",
+      "Lekin uzoq vaqt yoqib qo'ysangiz, havo dimiqadi va oynalar terlaydi."
+    ],
+    "cta": "Siz bu tugmani ishlatasizmi? HA yoki YO'Q",
+    "caption": "Mashinadagi eng ko'p e'tibordan chetda qoladigan tugma 🔄\n\nHavo aylanish rejimi tirbandlik va changda foydali, lekin uzoq yoqib qo'ysangiz oynalar terlaydi.\n\nSiz bu tugmani ishlatasizmi? 👇\nHaydovchi do'stingizga yuboring 🚗",
+    "hashtags": ["avtouz", "haydovchi", "mashina", "foydalimaslahat", "toshkent"]
+  },
+  {
+    "id": "r05_telegram_cache",
+    "theme": "phone",
+    "label": "TELEFON SIRI",
+    "hook": "Telefon xotirasi to'ldimi?\n*Rasmlarni* o'chirmang!",
+    "voice": [
+      "Telefon xotirasi to'ldimi? Rasmlarni o'chirishga shoshilmang.",
+      "Ko'pincha joyni Telegram egallaydi. U ko'rgan videolaringizni xotirada saqlab qo'yadi.",
+      "Telegram sozlamalariga kiring, ma'lumotlar va xotira, keyin xotiradan foydalanish bo'limini oching.",
+      "Keshni tozalash tugmasini bosing. Ba'zan bir necha gigabayt joy bo'shaydi."
+    ],
+    "cta": "Sizda Telegram necha GB joy egallagan ekan? Yozing",
+    "caption": "Telegram telefoningizda gigabaytlab joy egallab yotibdi 📱\n\nSozlamalar → Ma'lumotlar va xotira → Xotiradan foydalanish → Keshni tozalash.\n\nSizda necha GB chiqdi? Izohda yozing 👇\nXotirasi to'lgan do'stingizga yuboring",
+    "hashtags": ["telegram", "telefon", "foydalimaslahat", "uzbekistan", "lifehack"]
+  },
+  {
+    "id": "r06_brain_energy",
+    "theme": "fact",
+    "label": "BILASIZMI?",
+    "hook": "Miyangiz har kuni\n*shuncha* energiya yeydi",
+    "voice": [
+      "Miyangiz har kuni qancha energiya sarflashini bilasizmi?",
+      "Miya tana vaznining atigi ikki foizini tashkil qiladi.",
+      "Lekin u tanadagi butun energiyaning qariyb yigirma foizini sarflaydi.",
+      "Shuning uchun ko'p o'ylagan kunlari odam qattiq charchaydi."
+    ],
+    "cta": "Siz qaysi ishdan ko'proq charchaysiz: jismoniy yoki aqliy?",
+    "caption": "Miya — tanadagi eng «ochko'z» a'zo 🧠\n\nVaznning ~2% i, lekin energiyaning ~20% ini sarflaydi.\n\nSiz qaysi ishdan ko'proq charchaysiz: jismoniy yoki aqliy? 👇",
+    "hashtags": ["bilasizmi", "qiziqarlifaktlar", "faktlar", "uzbekistan", "miya"]
+  },
+  {
+    "id": "r07_wifi_router",
+    "theme": "phone",
+    "label": "UY UCHUN SIR",
+    "hook": "Wi-Fi sekinmi?\n*Routerni* tekshiring",
+    "voice": [
+      "Uyda Wi-Fi sekin ishlayaptimi? Muammo internetda emas, routerda bo'lishi mumkin.",
+      "Routerni polga yoki shkaf ichiga qo'ymang.",
+      "Uni baland joyga, uyning o'rtasiga qo'ying.",
+      "Mikroto'lqinli pech va qalin devorlar signalni susaytiradi."
+    ],
+    "cta": "Sizning routeringiz hozir qayerda turibdi?",
+    "caption": "Wi-Fi sekinligining eng ko'p uchraydigan sababi 📶\n\nRouterni baland joyga va uyning o'rtasiga qo'ying. Pol, shkaf ichi va mikroto'lqinli pech yoni — eng yomon joylar.\n\nSizniki qayerda turibdi? 👇",
+    "hashtags": ["wifi", "internet", "foydalimaslahat", "uzbekistan", "lifehack"]
+  },
+  {
+    "id": "r08_engine_warmup",
+    "theme": "car",
+    "label": "MASHINA SIRI",
+    "hook": "Qishda mashinani\n*10 daqiqa* qizdirasizmi?",
+    "voice": [
+      "Qishda mashinani o'n daqiqa qizdirasizmi? Bu xato bo'lishi mumkin.",
+      "Zamonaviy injektorli dvigatelga bir-ikki daqiqa yetarli.",
+      "Keyin birinchi bir necha kilometrni sekin, yuqori aylanmasiz yuring. Dvigatel harakatda tezroq qiziydi.",
+      "Uzoq turib qizdirish ortiqcha yoqilg'i va ortiqcha tutun degani."
+    ],
+    "cta": "Siz necha daqiqa qizdirasiz? Raqam bilan yozing",
+    "caption": "Qishda dvigatelni qancha qizdirish kerak? ❄️\n\nZamonaviy injektorli mashinaga 1–2 daqiqa, keyin sekin harakat. Uzoq turib qizdirish = ortiqcha yoqilg'i.\n\nSiz necha daqiqa qizdirasiz? Raqam bilan yozing 👇",
+    "hashtags": ["avtouz", "haydovchi", "mashina", "qish", "foydalimaslahat"]
+  },
+  {
+    "id": "r09_octopus",
+    "theme": "fact",
+    "label": "BILASIZMI?",
+    "hook": "Bu jonzotning\n*3 ta yuragi* bor",
+    "voice": [
+      "Bu jonzotning uchta yuragi va ko'k qoni bor.",
+      "Gap sakkizoyoq haqida.",
+      "Ikki yuragi qonni jabralarga, uchinchisi butun tanaga haydaydi.",
+      "Qoni ko'k, chunki unda temir emas, mis bor."
+    ],
+    "cta": "Yana qaysi hayvon haqida fakt xohlaysiz? Izohda yozing",
+    "caption": "3 ta yurak va ko'k qon 🐙\n\nSakkizoyoqning qonida temir emas, mis bor — shuning uchun u ko'k.\n\nKeyingi videoda qaysi hayvon haqida aytay? Izohda yozing 👇",
+    "hashtags": ["bilasizmi", "qiziqarlifaktlar", "hayvonlar", "faktlar", "uzbekistan"]
+  },
+  {
+    "id": "r10_tire_pressure",
+    "theme": "car",
+    "label": "MASHINA SIRI",
+    "hook": "Mashinangiz benzinni\n*ko'p yeyaptimi?*",
+    "voice": [
+      "Mashinangiz benzinni ko'p yeyaptimi? Avval shinalarga qarang.",
+      "Shina bosimi past bo'lsa, g'ildirak yo'lga ko'proq ishqalanadi va yoqilg'i ko'p ketadi.",
+      "To'g'ri bosim haydovchi eshigi yonidagi yoki bak qopqog'idagi stikerda yozilgan.",
+      "Oyiga bir marta tekshiring. Bu bepul."
+    ],
+    "cta": "Mashinangiz 100 km ga necha litr yeydi? Yozing",
+    "caption": "Yoqilg'ini tejashning eng arzon usuli — bepul ⛽\n\nPast shina bosimi sarfni oshiradi. To'g'ri bosim eshik yonidagi yoki bak qopqog'idagi stikerda.\n\nSizning mashina 100 km ga necha litr yeydi? 👇",
+    "hashtags": ["avtouz", "haydovchi", "mashina", "foydalimaslahat", "toshkent"]
+  },
+  {
+    "id": "r11_banana_berry",
+    "theme": "fact",
+    "label": "BILASIZMI?",
+    "hook": "Banan — *rezavor meva*,\nqulupnay esa yo'q!",
+    "voice": [
+      "Ishonasizmi, banan botanikada rezavor meva hisoblanadi.",
+      "Qulupnay esa rezavor emas.",
+      "Olimlar uchun rezavor meva bitta gulning tuguncha qismidan rivojlangan, urug'lari ichida bo'lgan meva.",
+      "Qulupnayning urug'lari esa tashqarisida."
+    ],
+    "cta": "Siz bunga ishonasizmi? HA yoki YO'Q",
+    "caption": "Botanika bo'yicha banan — rezavor, qulupnay — yo'q 🍌🍓\n\nQulupnayning urug'lari tashqarida joylashgan, shuning uchun u haqiqiy rezavor hisoblanmaydi.\n\nSiz bunga ishonasizmi? 👇",
+    "hashtags": ["bilasizmi", "qiziqarlifaktlar", "faktlar", "uzbekistan", "mevalar"]
+  },
+  {
+    "id": "r12_phone_screen_germs",
+    "theme": "phone",
+    "label": "TELEFON SIRI",
+    "hook": "Telefoningiz ekrani\n*qanchalik iflos?*",
+    "voice": [
+      "Telefoningiz ekrani qanchalik iflos ekanini bilasizmi?",
+      "Tadqiqotlarga ko'ra, telefon ekranida hojatxona o'tirg'ichidan ham ko'p bakteriya bo'lishi mumkin.",
+      "Biz uni kuniga yuzlab marta ushlaymiz, lekin deyarli tozalamaymiz.",
+      "Haftasiga bir marta spirtli salfetka bilan yengil arting."
+    ],
+    "cta": "Siz oxirgi marta qachon telefoningizni artgansiz?",
+    "caption": "Telefon — eng ko'p ushlanadigan, lekin eng kam tozalanadigan narsa 📱🦠\n\nHaftasiga bir marta spirtli salfetka bilan yengil arting.\n\nSiz oxirgi marta qachon artgansiz? Rostini yozing 👇",
+    "hashtags": ["telefon", "foydalimaslahat", "salomatlik", "uzbekistan", "bilasizmi"]
+  },
+  {
+    "id": "r13_camera_text",
+    "theme": "phone",
+    "label": "TELEFON SIRI",
+    "hook": "Kamerangiz *matnni*\nnusxalay oladi",
+    "voice": [
+      "Telefon kamerangiz qog'ozdagi matnni nusxalay olishini bilarmidingiz?",
+      "Kamerani hujjatga qarating.",
+      "iPhone'da pastki burchakdagi matn belgisini, Androidda Google Lens'ni bosing.",
+      "Matnni belgilang va nusxalang. Endi qayta yozish shart emas."
+    ],
+    "cta": "Bu funksiya sizda ishladimi? Sinab ko'rib yozing",
+    "caption": "Qog'ozdagi matnni qayta yozmang ✍️❌\n\niPhone: kamera → matn belgisi. Android: Google Lens → Matn. Belgilang va nusxalang.\n\nSizda ishladimi? Sinab ko'rib yozing 👇\nO'qiyotgan do'stingizga yuboring 📚",
+    "hashtags": ["telefon", "lifehack", "foydalimaslahat", "uzbekistan", "talaba"]
+  },
+  {
+    "id": "r14_ice_scraper_water",
+    "theme": "car",
+    "label": "MASHINA SIRI",
+    "hook": "Muzlagan oynaga\n*qaynoq suv* quymang!",
+    "voice": [
+      "Qishda muzlagan oynaga qaynoq suv quymang!",
+      "Sovuq shisha keskin qizisa, unda yoriq paydo bo'lishi mumkin.",
+      "Dvigatelni yoqing, isitgichni oynaga yo'naltiring va plastik qirg'ich ishlating.",
+      "Shoshilsangiz, sovuq suv ham qaynoq suvdan xavfsizroq."
+    ],
+    "cta": "Siz qishda oynani qanday tozalaysiz?",
+    "caption": "Qishdagi eng qimmat xato ❄️🚗\n\nMuzlagan oynaga qaynoq suv quysangiz, u yorilishi mumkin. Isitgich + plastik qirg'ich — eng xavfsiz yo'l.\n\nSiz qanday tozalaysiz? 👇\nHaydovchi do'stingizni ogohlantiring",
+    "hashtags": ["avtouz", "haydovchi", "qish", "mashina", "foydalimaslahat"]
+  }
+]
