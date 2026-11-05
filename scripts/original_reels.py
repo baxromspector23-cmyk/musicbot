@@ -20,6 +20,7 @@ import os
 import subprocess
 import sys
 import wave
+import zlib
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
@@ -44,12 +45,18 @@ W, H, FPS = 1080, 1920, 30
 SR = 24000
 VOICE = "uz-UZ-SardorNeural"
 RATE = "+8%"
-HANDLE = "@test_aibot"
+HANDLE = "@bilasizmi.uz.sirlar"
 MIN_HOURS_BETWEEN_POSTS = 4
+SILENT = True  # no AI voice; licensed Instagram music is attached at upload
+MUSIC_QUERY = {"car": "phonk", "phone": "lofi", "fact": "lofi"}
 
 FONT_DIR = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
-FONT_BLACK = str(FONT_DIR / "seguibl.ttf")
-FONT_BOLD = str(FONT_DIR / "segoeuib.ttf")
+if (FONT_DIR / "seguibl.ttf").exists():
+    FONT_BLACK = str(FONT_DIR / "seguibl.ttf")
+    FONT_BOLD = str(FONT_DIR / "segoeuib.ttf")
+else:  # Linux / GitHub Actions: bundled OFL fonts
+    FONT_BLACK = str(ROOT / "assets" / "fonts" / "Montserrat-900.ttf")
+    FONT_BOLD = str(ROOT / "assets" / "fonts" / "Montserrat-700.ttf")
 
 YELLOW = (255, 214, 10)
 WHITE = (255, 255, 255)
@@ -157,6 +164,34 @@ def build_audio(item: dict, work: Path) -> tuple[Path, list[dict], float]:
         w.setsampwidth(2)
         w.setframerate(SR)
         w.writeframes((mix * 32767).astype(np.int16).tobytes())
+    return wav, segs, total
+
+
+def build_silent(item: dict, work: Path) -> tuple[Path, list[dict], float]:
+    """No voice: words appear at reading pace; returns silent wav (music is added at upload)."""
+    texts = list(item["voice"]) + [item["cta"]]
+    kinds = ["hook"] + ["body"] * (len(item["voice"]) - 1) + ["cta"]
+    cursor = 0.0
+    segs: list[dict] = []
+    for txt, kind in zip(texts, kinds):
+        toks = txt.split()
+        if kind == "hook":
+            dur = 2.4
+        elif kind == "cta":
+            dur = 3.2
+        else:
+            dur = max(2.0, 0.36 * len(toks) + 0.5)
+        per = (dur - 0.4) / max(len(toks), 1)
+        words = [(w, cursor + i * per, cursor + (i + 1) * per) for i, w in enumerate(toks)]
+        segs.append({"kind": kind, "text": txt, "start": cursor, "end": cursor + dur, "words": words})
+        cursor += dur
+    total = cursor + 0.4
+    wav = work / "silence.wav"
+    with wave.open(str(wav), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes(np.zeros(int(SR * total), dtype=np.int16).tobytes())
     return wav, segs, total
 
 
@@ -301,7 +336,7 @@ def render_video(item: dict, force: bool = False) -> Path:
         return out
     work = OUT_DIR / f"_work_{item['id']}"
     work.mkdir(parents=True, exist_ok=True)
-    wav, segs, total = build_audio(item, work)
+    wav, segs, total = build_silent(item, work) if SILENT else build_audio(item, work)
     c1, c2, accent = THEMES.get(item.get("theme", "fact"), THEMES["fact"])
 
     yy = np.linspace(0, 1, H, dtype=np.float32)[:, None, None]
@@ -311,7 +346,7 @@ def render_video(item: dict, force: bool = False) -> Path:
     glow = np.exp(-(((xx - 0.5) ** 2) * 6 + ((yy - 0.42) ** 2) * 10))
     grad_b = grad_a * 0.75 + ac * glow * 0.55
 
-    rng = np.random.default_rng(abs(hash(item["id"])) % 2**32)
+    rng = np.random.default_rng(zlib.crc32(item["id"].encode()))
     bokeh = [(rng.uniform(0, W), rng.uniform(0, H), rng.uniform(30, 140), rng.uniform(-25, 25),
               rng.uniform(-60, -15), rng.uniform(25, 70)) for _ in range(14)]
     hook_img = render_hook_image(item["hook"], accent)
@@ -336,7 +371,7 @@ def render_video(item: dict, force: bool = False) -> Path:
            "-pix_fmt", "yuv420p", "-profile:v", "high", "-c:a", "aac", "-b:a", "160k", "-ar", "44100",
            "-shortest", "-movflags", "+faststart", str(out)]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    hook_until = hook_seg["end"] + 0.25
+    hook_until = hook_seg["end"] + (0.0 if SILENT else 0.25)
 
     for fi in range(n_frames):
         t = fi / FPS
@@ -443,9 +478,7 @@ def post_next(dry_run: bool = False) -> None:
     if dry_run:
         log(f"dry-run: would post {item['id']} -> {video}")
         return
-    from services import ig_direct
-
-    media_id, link = asyncio.run(ig_direct.upload_reel(video, full_caption(item)))
+    media_id, link = upload_with_music(item, video)
     posted[item["id"]] = {"media_id": media_id, "permalink": link,
                           "at": datetime.now(timezone.utc).isoformat()}
     save_state(st)
@@ -456,6 +489,45 @@ def post_next(dry_run: bool = False) -> None:
             render_video(pending[1])
         except Exception as exc:
             log(f"pre-render failed: {exc}")
+
+
+def upload_with_music(item: dict, video: Path) -> tuple[str, str]:
+    from services import ig_direct
+
+    settings = asyncio.run(ig_direct.load_direct_settings())
+    cl = ig_direct._create_client(settings)
+    q = MUSIC_QUERY.get(item.get("theme", "fact"), "lofi")
+    tracks = [t for t in cl.search_music(q) if t.uri][:5]
+    if not tracks:
+        raise RuntimeError(f"no music found for {q!r}")
+    track = tracks[zlib.crc32(item["id"].encode()) % len(tracks)]
+    work = OUT_DIR / f"_up_{item['id']}"
+    work.mkdir(parents=True, exist_ok=True)
+    audio = cl.track_download_by_url(track.uri, "track", work)
+    dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                str(video)], capture_output=True, text=True, check=True).stdout.strip())
+    start = (track.highlight_start_times_in_ms or [0])[0] / 1000
+    adur = (track.duration_in_ms or 0) / 1000
+    if adur and start + dur > adur:
+        start = max(0.0, adur - dur)
+    muxed = work / "reel.mp4"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(video), "-ss", f"{start:.2f}",
+                    "-i", str(audio), "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "160k",
+                    "-af", f"afade=t=out:st={max(dur - 0.8, 0):.2f}:d=0.8", "-t", f"{dur:.2f}",
+                    "-movflags", "+faststart", str(muxed)], check=True)
+    thumb = work / "thumb.jpg"
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-ss", "1.0", "-i", str(muxed),
+                    "-frames:v", "1", "-q:v", "2", str(thumb)], check=True)
+    extra = cl.clip_music_extra_data(track, audio_asset_start_time=int(start * 1000),
+                                     overlap_duration=int(dur * 1000), original_volume=0.0)
+    extra.update({"clips_share_preview_to_feed": "1"})
+    media = cl.clip_upload(muxed, full_caption(item), thumbnail=thumb, extra_data=extra)
+    asyncio.run(ig_direct.save_direct_session(cl.get_settings(), username=HANDLE.lstrip("@"), user_id=str(cl.user_id)))
+    log(f"music: {track.title} - {track.display_artist} (from {start:.1f}s)")
+    for f in work.iterdir():
+        f.unlink(missing_ok=True)
+    work.rmdir()
+    return str(media.pk or media.id), f"https://www.instagram.com/reel/{media.code}/"
 
 
 def main() -> None:
