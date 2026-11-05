@@ -1,9 +1,7 @@
 name: Cloud Autopilot Reels (3x Daily Rek)
 
+# DISABLED: repost-based autopilot replaced by local original-content pipeline (scripts/original_reels.py)
 on:
-  schedule:
-    # Off-peak 15m cron (3,18,33,48) to bypass GitHub :00 cron lag; skips in 1s outside 11:00, 15:00, 20:00 Tashkent
-    - cron: "3,18,33,48 * * * *"
   workflow_dispatch:
     inputs:
       mode:
@@ -17,6 +15,7 @@ concurrency:
 
 jobs:
   autopilot:
+    if: ${{ false }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
